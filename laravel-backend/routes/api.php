@@ -8,6 +8,8 @@ use App\Http\Controllers\KarenderiaController;
 use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MenuItemController;
+use App\Http\Controllers\MenuCategoryController;
+use App\Http\Controllers\IngredientController;
 use App\Models\User;
 
 // EMERGENCY LOGIN FOR PRESENTATION
@@ -45,6 +47,7 @@ Route::post('/emergency-login', function (Request $request) {
 });
 use App\Http\Controllers\DailyMenuController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\SupplierWorkflowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +69,7 @@ Route::get('/health', function () {
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/register-karenderia-owner', [AuthController::class, 'registerKarenderiaOwner']);
+    Route::post('/register-supplier', [AuthController::class, 'registerSupplier']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
@@ -157,12 +161,30 @@ Route::prefix('daily-menu')->group(function () {
 // Inventory routes (for karenderia owners to manage ingredients/supplies)
 Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('inventory')->group(function () {
     Route::get('/', [InventoryController::class, 'index']); // Get inventory items
+    Route::get('/alerts', [InventoryController::class, 'lowStock']); // Get low/out of stock alerts
     Route::post('/', [InventoryController::class, 'store']); // Add inventory item
     Route::get('/{id}', [InventoryController::class, 'show']); // Get specific inventory item
     Route::put('/{id}', [InventoryController::class, 'update']); // Update inventory item
     Route::delete('/{id}', [InventoryController::class, 'destroy']); // Delete inventory item
     Route::post('/{id}/use', [InventoryController::class, 'useIngredient']); // Use ingredient in cooking
     Route::post('/{id}/restock', [InventoryController::class, 'restock']); // Restock ingredient
+});
+
+// Supplier + owner inventory workflow routes
+Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
+    // Marketplace for karenderia owners
+    Route::get('/marketplace', [SupplierWorkflowController::class, 'marketplace']);
+
+    // Supplier listing management
+    Route::get('/supplier/listings', [SupplierWorkflowController::class, 'supplierListings']);
+    Route::post('/supplier/listings', [SupplierWorkflowController::class, 'createSupplierListing']);
+    Route::put('/supplier/listings/{listingId}', [SupplierWorkflowController::class, 'updateSupplierListing']);
+
+    // Supply order workflow
+    Route::post('/orders', [SupplierWorkflowController::class, 'createSupplyOrder']);
+    Route::get('/orders/owner', [SupplierWorkflowController::class, 'ownerOrders']);
+    Route::get('/orders/supplier', [SupplierWorkflowController::class, 'supplierOrders']);
+    Route::patch('/orders/{orderId}/status', [SupplierWorkflowController::class, 'updateOrderStatus']);
 });
 
 // Menu Categories (for organizing menu items)
@@ -222,6 +244,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/users', [AdminController::class, 'users']);
     Route::get('/customers', [AdminController::class, 'getCustomers']);
     Route::get('/karenderia-owners', [AdminController::class, 'getKarenderiaOwners']);
+    Route::get('/suppliers', [AdminController::class, 'getSuppliers']);
+    Route::put('/suppliers/{userId}/application-status', [AdminController::class, 'updateSupplierApplicationStatus']);
     Route::put('/users/{userId}/role', [AdminController::class, 'updateUserRole']);
     Route::put('/users/{userId}/toggle-status', [AdminController::class, 'toggleUserStatus']);
     Route::delete('/users/{userId}', [AdminController::class, 'deleteUser']);

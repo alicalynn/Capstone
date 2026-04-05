@@ -648,12 +648,69 @@ class AdminController extends Controller
     }
 
     /**
+     * Get all supplier accounts
+     */
+    public function getSuppliers()
+    {
+        $suppliers = User::where('role', 'supplier')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($supplier) {
+                return [
+                    'id' => $supplier->id,
+                    'name' => $supplier->name,
+                    'email' => $supplier->email,
+                    'phone_number' => $supplier->phone_number,
+                    'address' => $supplier->address,
+                    'application_status' => $supplier->application_status,
+                    'verified' => $supplier->verified,
+                    'created_at' => $supplier->created_at,
+                    'updated_at' => $supplier->updated_at,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $suppliers
+        ]);
+    }
+
+    /**
+     * Update supplier application status
+     */
+    public function updateSupplierApplicationStatus(Request $request, $userId)
+    {
+        $request->validate([
+            'application_status' => 'required|in:pending,approved,rejected'
+        ]);
+
+        $user = User::findOrFail($userId);
+
+        if ($user->role !== 'supplier') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target user is not a supplier'
+            ], 422);
+        }
+
+        $user->application_status = $request->application_status;
+        $user->verified = $request->application_status === 'approved';
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Supplier application status updated successfully',
+            'data' => $user
+        ]);
+    }
+
+    /**
      * Update user role
      */
     public function updateUserRole(Request $request, $userId)
     {
         $request->validate([
-            'role' => 'required|in:customer,karenderia_owner,admin'
+            'role' => 'required|in:customer,karenderia_owner,supplier,admin'
         ]);
 
         $user = User::findOrFail($userId);

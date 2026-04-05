@@ -22,7 +22,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'password_confirmation' => 'required|same:password',
-            'role' => 'in:customer,karenderia_owner'
+            'role' => 'in:customer,karenderia_owner,supplier'
         ]);
 
         if ($validator->fails()) {
@@ -37,7 +37,8 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'customer', // Force customer role for regular registration
-            'verified' => true // Auto-approve customers
+            'verified' => true, // Auto-approve customers
+            'application_status' => 'approved'
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -56,6 +57,60 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer'
         ], 201);
+    }
+
+    /**
+     * Register a new supplier account
+     */
+    public function registerSupplier(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'password_confirmation' => 'required|same:password',
+            'phone_number' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'supplier',
+                'verified' => false,
+                'application_status' => 'pending',
+                'phone_number' => $request->phone_number,
+                'address' => $request->address,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier registration submitted successfully! Your application is pending admin approval.',
+                'status' => 'pending_approval',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                    'application_status' => $user->application_status,
+                ],
+                'next_step' => 'Wait for admin approval, then login with your credentials'
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Supplier registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -234,6 +289,25 @@ class AuthController extends Controller
                         'rejection_reason' => $karenderia->rejection_reason,
                         'status' => 'rejected'
                     ]
+                ], 403);
+            }
+        }
+
+        // Supplier login approval check
+        if ($user->role === 'supplier') {
+            if ($user->application_status === 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your supplier application is still pending admin approval.',
+                    'status' => 'pending_approval',
+                ], 403);
+            }
+
+            if ($user->application_status === 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your supplier application was rejected. Please contact admin support.',
+                    'status' => 'rejected',
                 ], 403);
             }
         }
