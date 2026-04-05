@@ -33,6 +33,9 @@ class AdminController extends Controller
         $totalKarenderias = Karenderia::count();
         $activeKarenderias = Karenderia::where('status', 'active')->count();
         $pendingKarenderias = Karenderia::where('status', 'pending')->count();
+        $pendingSuppliers = User::where('role', 'supplier')
+            ->where('application_status', 'pending')
+            ->count();
         
         $totalRevenue = Order::where('payment_status', 'paid')->sum('total_amount');
         $totalProfit = Order::where('payment_status', 'paid')
@@ -45,18 +48,22 @@ class AdminController extends Controller
         
         $totalUsers = User::where('role', 'customer')->count();
         $totalOwners = User::where('role', 'karenderia_owner')->count();
+        $totalSuppliers = User::where('role', 'supplier')->count();
 
         return response()->json([
             'overview' => [
                 'total_karenderias' => $totalKarenderias,
                 'active_karenderias' => $activeKarenderias,
                 'pending_karenderias' => $pendingKarenderias,
+                'pending_suppliers' => $pendingSuppliers,
+                'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
                 'total_revenue' => $totalRevenue,
                 'total_profit' => $totalProfit,
                 'total_orders' => $totalOrders,
                 'todays_orders' => $todaysOrders,
                 'total_customers' => $totalUsers,
                 'total_owners' => $totalOwners,
+                'total_suppliers' => $totalSuppliers,
             ]
         ]);
     }
@@ -277,13 +284,29 @@ class AdminController extends Controller
     public function updateKarenderiaStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:active,inactive,pending',
+            'status' => 'required|in:approved,active,inactive,pending,rejected',
             'notes' => 'nullable|string'
         ]);
 
         $karenderia = Karenderia::findOrFail($id);
         $karenderia->status = $request->status;
         $karenderia->save();
+
+        if ($karenderia->owner) {
+            if (in_array($request->status, ['approved', 'active'], true)) {
+                $karenderia->owner->application_status = 'approved';
+                $karenderia->owner->verified = true;
+                $karenderia->owner->save();
+            } elseif ($request->status === 'pending') {
+                $karenderia->owner->application_status = 'pending';
+                $karenderia->owner->verified = false;
+                $karenderia->owner->save();
+            } elseif ($request->status === 'rejected') {
+                $karenderia->owner->application_status = 'rejected';
+                $karenderia->owner->verified = false;
+                $karenderia->owner->save();
+            }
+        }
 
         // You can add notification logic here to inform the owner
 
@@ -555,14 +578,22 @@ class AdminController extends Controller
      */
     public function getDashboardStats()
     {
+        $pendingKarenderias = Karenderia::where('status', 'pending')->count();
+        $pendingSuppliers = User::where('role', 'supplier')
+            ->where('application_status', 'pending')
+            ->count();
+
         $stats = [
             'total_karenderias' => Karenderia::count(),
-            'pending_karenderias' => Karenderia::where('status', 'pending')->count(),
+            'pending_karenderias' => $pendingKarenderias,
+            'pending_suppliers' => $pendingSuppliers,
+            'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
             'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
             'active_karenderias' => Karenderia::where('status', 'active')->count(),
             'karenderias_without_location' => Karenderia::whereNull('latitude')->orWhereNull('longitude')->count(),
             'total_users' => User::where('role', 'customer')->count(),
             'total_owners' => User::where('role', 'karenderia_owner')->count(),
+            'total_suppliers' => User::where('role', 'supplier')->count(),
             'total_orders' => Order::count(),
             'todays_orders' => Order::whereDate('created_at', today())->count(),
             'total_revenue' => Order::where('payment_status', 'paid')->sum('total_amount')
@@ -595,13 +626,14 @@ class AdminController extends Controller
                     'name' => $customer->name,
                     'email' => $customer->email,
                     'phone' => $customer->phone,
-                    'email_verified_at' => $customer->email_verified_at,
+                    'verified' => $customer->verified,
+                    'application_status' => $customer->application_status,
                     'created_at' => $customer->created_at,
                     'last_login' => $customer->updated_at,
                     'total_orders' => $customer->orders_count,
                     'total_spent' => $customer->orders_sum_total_amount ?? 0,
                     'recent_orders' => $customer->orders,
-                    'status' => $customer->email_verified_at ? 'verified' : 'unverified'
+                    'status' => $customer->verified ? 'verified' : 'unverified'
                 ];
             });
 
@@ -628,7 +660,8 @@ class AdminController extends Controller
                     'name' => $owner->name,
                     'email' => $owner->email,
                     'phone' => $owner->phone,
-                    'email_verified_at' => $owner->email_verified_at,
+                    'verified' => $owner->verified,
+                    'application_status' => $owner->application_status,
                     'created_at' => $owner->created_at,
                     'karenderia' => $owner->karenderia ? [
                         'business_name' => $owner->karenderia->business_name,
@@ -637,7 +670,7 @@ class AdminController extends Controller
                         'approved_at' => $owner->karenderia->approved_at,
                         'has_location' => !is_null($owner->karenderia->latitude) && !is_null($owner->karenderia->longitude)
                     ] : null,
-                    'status' => $owner->email_verified_at ? 'verified' : 'unverified'
+                    'status' => $owner->verified ? 'verified' : ($owner->application_status ?? 'unverified')
                 ];
             });
 
@@ -664,6 +697,7 @@ class AdminController extends Controller
                     'address' => $supplier->address,
                     'application_status' => $supplier->application_status,
                     'verified' => $supplier->verified,
+                    'status' => $supplier->verified ? 'verified' : $supplier->application_status,
                     'created_at' => $supplier->created_at,
                     'updated_at' => $supplier->updated_at,
                 ];
@@ -725,6 +759,15 @@ class AdminController extends Controller
 
         $oldRole = $user->role;
         $user->role = $request->role;
+
+        if (in_array($request->role, ['karenderia_owner', 'supplier'], true)) {
+            $user->application_status = 'pending';
+            $user->verified = false;
+        } else {
+            $user->application_status = 'approved';
+            $user->verified = true;
+        }
+
         $user->save();
 
         return response()->json([

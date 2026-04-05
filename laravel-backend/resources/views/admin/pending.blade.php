@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Pending Approvals')
-@section('page-title', 'Pending Karenderia Approvals')
+@section('page-title', 'Pending Approvals')
 
 @section('content')
 <div class="row">
@@ -10,13 +10,14 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-clock me-2"></i>Pending Karenderia Applications
+                        <i class="fas fa-clock me-2"></i>Pending Applications
                     </h5>
-                    <span class="badge bg-warning fs-6">{{ $pendingKarenderias->total() }} pending</span>
+                    <span class="badge bg-warning fs-6">{{ $pendingCount }} pending</span>
                 </div>
             </div>
             <div class="card-body">
-                @if($pendingKarenderias->count() > 0)
+                @if($pendingKarenderias->count() > 0 || $pendingSuppliers->count() > 0)
+                    @if($pendingKarenderias->count() > 0)
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -64,14 +65,18 @@
                                     <td>
                                         <div class="btn-group-vertical btn-group-sm" role="group">
                                             <!-- Approve Button -->
-                                            <button type="button" class="btn btn-outline-success mb-1" 
-                                                    onclick="approveKarenderia({{ $karenderia->id }}, '{{ $karenderia->name }}')">
+                                                <button type="button" class="btn btn-outline-success mb-1" 
+                                                    data-id="{{ $karenderia->id }}"
+                                                    data-name="{{ e($karenderia->name) }}"
+                                                    onclick="approveKarenderia(this)">
                                                 <i class="fas fa-check me-1"></i>Approve
                                             </button>
                                             
                                             <!-- Reject Button -->
-                                            <button type="button" class="btn btn-outline-danger" 
-                                                    onclick="showRejectModal({{ $karenderia->id }}, '{{ $karenderia->name }}')">
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                    data-id="{{ $karenderia->id }}"
+                                                    data-name="{{ e($karenderia->name) }}"
+                                                    onclick="showRejectModal(this)">
                                                 <i class="fas fa-times me-1"></i>Reject
                                             </button>
                                         </div>
@@ -86,11 +91,72 @@
                     <div class="d-flex justify-content-center mt-4">
                         {{ $pendingKarenderias->links() }}
                     </div>
+                    @endif
+
+                    @if($pendingSuppliers->count() > 0)
+                        <div class="mt-5">
+                            <h5 class="card-title mb-3">
+                                <i class="fas fa-truck me-2"></i>Pending Supplier Applications
+                            </h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Supplier Details</th>
+                                            <th>Contact</th>
+                                            <th>Application Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($pendingSuppliers as $supplier)
+                                        <tr>
+                                            <td>
+                                                <strong class="text-primary">{{ $supplier->name }}</strong>
+                                                <br><small class="text-muted">{{ $supplier->email }}</small>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    @if($supplier->phone_number)
+                                                        <i class="fas fa-phone"></i> {{ $supplier->phone_number }}<br>
+                                                    @endif
+                                                    @if($supplier->address)
+                                                        <i class="fas fa-map-marker-alt"></i> {{ Str::limit($supplier->address, 60) }}
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark">{{ $supplier->created_at->format('M d, Y') }}</span>
+                                                <br><small class="text-muted">{{ $supplier->created_at->diffForHumans() }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group-vertical btn-group-sm" role="group">
+                                                            <button type="button" class="btn btn-outline-success mb-1"
+                                                                data-id="{{ $supplier->id }}"
+                                                                data-name="{{ e($supplier->name) }}"
+                                                                onclick="approveUser(this)">
+                                                        <i class="fas fa-check me-1"></i>Approve
+                                                    </button>
+                                                            <button type="button" class="btn btn-outline-danger"
+                                                                data-id="{{ $supplier->id }}"
+                                                                data-name="{{ e($supplier->name) }}"
+                                                                onclick="showRejectUserModal(this)">
+                                                        <i class="fas fa-times me-1"></i>Reject
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 @else
                     <div class="text-center py-5">
                         <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
                         <h4>All Caught Up!</h4>
-                        <p class="text-muted">No pending karenderia applications at the moment.</p>
+                        <p class="text-muted">No pending karenderia or supplier applications at the moment.</p>
                     </div>
                 @endif
             </div>
@@ -104,7 +170,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-check-circle text-success me-2"></i>Approve Karenderia
+                    <i class="fas fa-check-circle text-success me-2"></i>Approve Application
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -112,7 +178,7 @@
                 <p>Are you sure you want to approve <strong id="approveName"></strong>?</p>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    Once approved, the karenderia owner will be able to log in and manage their restaurant.
+                    Once approved, this account will be able to log in and access its approved features.
                 </div>
             </div>
             <div class="modal-footer">
@@ -134,7 +200,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-times-circle text-danger me-2"></i>Reject Karenderia
+                    <i class="fas fa-times-circle text-danger me-2"></i>Reject Application
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -151,7 +217,7 @@
                     
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        This action will notify the owner about the rejection and the reason provided.
+                        This action will notify the applicant about the rejection and the reason provided.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -168,15 +234,36 @@
 
 @section('scripts')
 <script>
-function approveKarenderia(id, name) {
+function approveKarenderia(button) {
+    const id = button.dataset.id;
+    const name = button.dataset.name;
     document.getElementById('approveName').textContent = name;
     document.getElementById('approveForm').action = `/admin/pending/${id}/approve`;
     new bootstrap.Modal(document.getElementById('approveModal')).show();
 }
 
-function showRejectModal(id, name) {
+function showRejectModal(button) {
+    const id = button.dataset.id;
+    const name = button.dataset.name;
     document.getElementById('rejectName').textContent = name;
     document.getElementById('rejectForm').action = `/admin/pending/${id}/reject`;
+    document.getElementById('rejection_reason').value = '';
+    new bootstrap.Modal(document.getElementById('rejectModal')).show();
+}
+
+function approveUser(button) {
+    const id = button.dataset.id;
+    const name = button.dataset.name;
+    document.getElementById('approveName').textContent = name;
+    document.getElementById('approveForm').action = `/admin/pending/user/${id}/approve`;
+    new bootstrap.Modal(document.getElementById('approveModal')).show();
+}
+
+function showRejectUserModal(button) {
+    const id = button.dataset.id;
+    const name = button.dataset.name;
+    document.getElementById('rejectName').textContent = name;
+    document.getElementById('rejectForm').action = `/admin/pending/user/${id}/reject`;
     document.getElementById('rejection_reason').value = '';
     new bootstrap.Modal(document.getElementById('rejectModal')).show();
 }

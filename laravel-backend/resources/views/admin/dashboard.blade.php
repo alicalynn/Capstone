@@ -44,7 +44,8 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-muted">Pending Approvals</h6>
-                        <h3 class="text-warning">{{ $stats['pending_karenderias'] }}</h3>
+                        <h3 class="text-warning">{{ $stats['pending_approvals'] }}</h3>
+                        <small class="text-muted">Karenderias + suppliers</small>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-clock fa-2x text-warning"></i>
@@ -147,8 +148,8 @@
                 <div class="d-grid gap-2">
                     <a href="{{ route('admin.pending') }}" class="btn btn-warning">
                         <i class="fas fa-clock me-2"></i>Review Pending
-                        @if($stats['pending_karenderias'] > 0)
-                            <span class="badge bg-light text-dark ms-2">{{ $stats['pending_karenderias'] }}</span>
+                        @if($stats['pending_approvals'] > 0)
+                            <span class="badge bg-light text-dark ms-2">{{ $stats['pending_approvals'] }}</span>
                         @endif
                     </a>
                     <a href="{{ route('admin.users') }}" class="btn btn-primary">
@@ -170,25 +171,42 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
+                    @php
+                        $customerPercent = $stats['total_users'] > 0 ? ($stats['total_customers'] / $stats['total_users']) * 100 : 0;
+                    @endphp
                     <div class="d-flex justify-content-between mb-1">
                         <span>Customers</span>
                         <span>{{ $stats['total_customers'] }}</span>
                     </div>
                     <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-primary" style="width: {{ $stats['total_users'] > 0 ? ($stats['total_customers'] / $stats['total_users']) * 100 : 0 }}%"></div>
+                        <div class="progress-bar bg-primary distribution-progress" data-width="{{ round($customerPercent, 2) }}" style="width: 0;"></div>
                     </div>
                 </div>
                 <div class="mb-0">
+                    @php
+                        $ownerPercent = $stats['total_users'] > 0 ? ($stats['total_karenderia_owners'] / $stats['total_users']) * 100 : 0;
+                    @endphp
                     <div class="d-flex justify-content-between mb-1">
                         <span>Karenderia Owners</span>
                         <span>{{ $stats['total_karenderia_owners'] }}</span>
                     </div>
                     <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-success" style="width: {{ $stats['total_users'] > 0 ? ($stats['total_karenderia_owners'] / $stats['total_users']) * 100 : 0 }}%"></div>
+                        <div class="progress-bar bg-success distribution-progress" data-width="{{ round($ownerPercent, 2) }}" style="width: 0;"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.distribution-progress').forEach(function (bar) {
+        const width = Number(bar.getAttribute('data-width') || 0);
+        bar.style.width = `${Math.max(0, Math.min(100, width))}%`;
+    });
+});
+</script>
 @endsection

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Karenderia;
+use App\Models\User;
 
 class PendingController extends Controller
 {
@@ -15,9 +16,14 @@ class PendingController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $pendingCount = $pendingKarenderias->total();
+        $pendingSuppliers = User::where('role', 'supplier')
+            ->where('application_status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        return view('admin.pending', compact('pendingKarenderias'))->with('pendingCount', $pendingCount);
+        $pendingCount = $pendingKarenderias->total() + $pendingSuppliers->count();
+
+        return view('admin.pending', compact('pendingKarenderias', 'pendingSuppliers'))->with('pendingCount', $pendingCount);
     }
 
     public function approve(Request $request, $id)
@@ -27,6 +33,12 @@ class PendingController extends Controller
             $karenderia->status = 'approved';
             $karenderia->approved_at = now();
             $karenderia->save();
+
+            if ($karenderia->owner) {
+                $karenderia->owner->application_status = 'approved';
+                $karenderia->owner->verified = true;
+                $karenderia->owner->save();
+            }
 
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully!");
@@ -49,6 +61,12 @@ class PendingController extends Controller
             $karenderia->rejected_at = now();
             $karenderia->save();
 
+            if ($karenderia->owner) {
+                $karenderia->owner->application_status = 'rejected';
+                $karenderia->owner->verified = false;
+                $karenderia->owner->save();
+            }
+
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been rejected.");
         } catch (\Exception $e) {
@@ -61,6 +79,7 @@ class PendingController extends Controller
     {
         try {
             $user = \App\Models\User::findOrFail($id);
+            $user->application_status = 'approved';
             $user->verified = true;
             $user->save();
 
@@ -76,10 +95,12 @@ class PendingController extends Controller
     {
         try {
             $user = \App\Models\User::findOrFail($id);
-            $user->delete(); // Or you could add a 'rejected' status
+            $user->application_status = 'rejected';
+            $user->verified = false;
+            $user->save();
 
             return redirect()->route('admin.pending')
-                ->with('success', "User '{$user->name}' has been rejected and removed.");
+                ->with('success', "User '{$user->name}' has been rejected.");
         } catch (\Exception $e) {
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to reject user. Please try again.');

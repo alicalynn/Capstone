@@ -47,19 +47,51 @@
                                             <span class="badge bg-danger">Admin</span>
                                         @elseif($user->role === 'karenderia_owner')
                                             <span class="badge bg-warning text-dark">Karenderia Owner</span>
+                                        @elseif($user->role === 'supplier')
+                                            <span class="badge bg-info text-dark">Supplier</span>
                                         @else
                                             <span class="badge bg-primary">Customer</span>
                                         @endif
                                     </td>
                                     <td>
-                                        @if($user->email_verified_at)
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-check"></i> Verified
-                                            </span>
+                                        @if($user->role === 'supplier')
+                                            @if($user->application_status === 'approved')
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Verified
+                                                </span>
+                                            @elseif($user->application_status === 'rejected')
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times"></i> Rejected
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Pending Approval
+                                                </span>
+                                            @endif
+                                        @elseif($user->role === 'karenderia_owner')
+                                            @if($user->application_status === 'approved' || ($user->karenderia && $user->karenderia->status === 'approved'))
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Verified
+                                                </span>
+                                            @elseif($user->application_status === 'rejected' || ($user->karenderia && $user->karenderia->status === 'rejected'))
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times"></i> Rejected
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Pending Approval
+                                                </span>
+                                            @endif
                                         @else
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-clock"></i> Pending
-                                            </span>
+                                            @if($user->verified)
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Verified
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Pending
+                                                </span>
+                                            @endif
                                         @endif
                                     </td>
                                     <td>
@@ -81,6 +113,14 @@
                                                 @endif
                                             @else
                                                 <span class="badge bg-secondary">No Karenderia</span>
+                                            @endif
+                                        @elseif($user->role === 'supplier')
+                                            @if($user->application_status === 'approved')
+                                                <span class="badge bg-success">Active</span>
+                                            @elseif($user->application_status === 'rejected')
+                                                <span class="badge bg-danger">Rejected</span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">Pending Approval</span>
                                             @endif
                                         @else
                                             <span class="badge bg-success">Active</span>

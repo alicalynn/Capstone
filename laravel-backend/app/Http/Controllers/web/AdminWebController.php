@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Karenderia;
 
@@ -26,45 +27,53 @@ class AdminWebController extends Controller
 
             $credentials = $request->only('email', 'password');
             
-            \Log::info('Admin login attempt', ['email' => $credentials['email']]);
+            Log::info('Admin login attempt', ['email' => $credentials['email']]);
             
             if (Auth::attempt($credentials)) {
                 $user = Auth::user();
-                \Log::info('Authentication successful', ['user_id' => $user->id, 'role' => $user->role]);
+                Log::info('Authentication successful', ['user_id' => $user->id, 'role' => $user->role]);
                 
                 if ($user->role === 'admin') {
                     $request->session()->regenerate();
-                    \Log::info('Admin login successful', ['user_id' => $user->id]);
+                    Log::info('Admin login successful', ['user_id' => $user->id]);
                     return redirect()->route('admin.dashboard')->with('success', 'Welcome to Admin Dashboard!');
                 } else {
                     Auth::logout();
-                    \Log::warning('Non-admin user tried to access admin area', ['user_id' => $user->id, 'role' => $user->role]);
+                    Log::warning('Non-admin user tried to access admin area', ['user_id' => $user->id, 'role' => $user->role]);
                     return back()->withErrors(['email' => 'Access denied. Admin privileges required.'])->withInput();
                 }
             }
 
-            \Log::warning('Invalid login credentials', ['email' => $credentials['email']]);
+            Log::warning('Invalid login credentials', ['email' => $credentials['email']]);
             return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
             
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation error in admin login', ['errors' => $e->errors()]);
+            Log::error('Validation error in admin login', ['errors' => $e->errors()]);
             return back()->withErrors($e->errors())->withInput();
         } catch (\Illuminate\Session\TokenMismatchException $e) {
-            \Log::error('CSRF token mismatch in admin login');
+            Log::error('CSRF token mismatch in admin login');
             return redirect()->route('admin.login')->withErrors(['email' => 'Session expired. Please try again.']);
         } catch (\Exception $e) {
-            \Log::error('Admin login error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Admin login error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return back()->withErrors(['email' => 'Login failed. Please try again.'])->withInput();
         }
     }
 
     public function dashboard()
     {
+        $pendingKarenderias = Karenderia::where('status', 'pending')->count();
+        $pendingSuppliers = User::where('role', 'supplier')
+            ->where('application_status', 'pending')
+            ->count();
+
         $stats = [
             'total_users' => User::count(),
             'total_customers' => User::where('role', 'customer')->count(),
             'total_karenderia_owners' => User::where('role', 'karenderia_owner')->count(),
-            'pending_karenderias' => Karenderia::where('status', 'pending')->count(),
+            'total_suppliers' => User::where('role', 'supplier')->count(),
+            'pending_karenderias' => $pendingKarenderias,
+            'pending_suppliers' => $pendingSuppliers,
+            'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
             'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
             'rejected_karenderias' => Karenderia::where('status', 'rejected')->count(),
         ];
@@ -75,20 +84,22 @@ class AdminWebController extends Controller
             ->get();
 
         return view('admin.dashboard', compact('stats', 'recent_registrations'))
-            ->with('pendingCount', $stats['pending_karenderias']);
+            ->with('pendingCount', $stats['pending_approvals']);
     }
 
     public function users()
     {
-        $users = User::orderBy('created_at', 'desc')->paginate(20);
-        $pendingCount = Karenderia::where('status', 'pending')->count();
+        $users = User::with('karenderia')->orderBy('created_at', 'desc')->paginate(20);
+        $pendingCount = Karenderia::where('status', 'pending')->count()
+            + User::where('role', 'supplier')->where('application_status', 'pending')->count();
         return view('admin.users', compact('users'))->with('pendingCount', $pendingCount);
     }
 
     public function karenderias()
     {
         $karenderias = Karenderia::with('owner')->orderBy('created_at', 'desc')->paginate(20);
-        $pendingCount = Karenderia::where('status', 'pending')->count();
+        $pendingCount = Karenderia::where('status', 'pending')->count()
+            + User::where('role', 'supplier')->where('application_status', 'pending')->count();
         return view('admin.karenderias', compact('karenderias'))->with('pendingCount', $pendingCount);
     }
 

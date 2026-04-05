@@ -68,7 +68,7 @@
                                         <i class="fas fa-envelope"></i>
                                     </span>
                                     <input type="email" class="form-control @error('email') is-invalid @enderror" 
-                                           id="email" name="email" value="{{ old('email', 'admin@kaplato.com') }}" required autocomplete="email">
+                                           id="email" name="email" value="{{ old('email', 'admin@admin.com') }}" required autocomplete="email">
                                 </div>
                                 @error('email')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -94,11 +94,11 @@
                             </button>
                         </form>
                         
-                        <div class="mt-3 text-center">
+                        <!-- <div class="mt-3 text-center">
                             <small class="text-muted">
                                 Debug Info: CSRF Token = <span id="csrfToken">{{ csrf_token() }}</span>
                             </small>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
                 
