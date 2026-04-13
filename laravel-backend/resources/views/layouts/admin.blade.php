@@ -8,9 +8,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            color-scheme: light dark;
+            --admin-text: #1f2937;
+            --admin-muted: #4b5563;
+            --admin-bg: #f8f9fa;
+            --admin-card-bg: #ffffff;
+            --admin-border: #dee2e6;
+            --admin-table-head: #e9ecef;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --admin-text: #f3f4f6;
+                --admin-muted: #d1d5db;
+                --admin-bg: #111827;
+                --admin-card-bg: #1f2937;
+                --admin-border: #374151;
+                --admin-table-head: #374151;
+            }
+        }
+
         body {
-            color: #212529;
+            color: var(--admin-text);
             font-weight: 500;
+            background-color: var(--admin-bg);
         }
         .sidebar {
             min-height: 100vh;
@@ -28,25 +50,27 @@
             font-weight: 700;
         }
         .main-content {
-            background-color: #f8f9fa;
+            background-color: var(--admin-bg);
         }
         .card {
             border: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background-color: var(--admin-card-bg);
+            color: var(--admin-text);
         }
         .card-title {
-            color: #495057 !important;
+            color: var(--admin-text) !important;
             font-weight: 700 !important;
             font-size: 0.95rem !important;
         }
         .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #e9ecef;
+            background-color: var(--admin-card-bg);
+            border-bottom: 2px solid var(--admin-border);
             font-weight: 700;
         }
         .card-header h5, .card-header h6 {
             font-weight: 800;
-            color: #212529 !important;
+            color: var(--admin-text) !important;
         }
         .stat-card {
             border-left: 4px solid;
@@ -61,22 +85,51 @@
         }
         .navbar-brand {
             font-weight: bold;
-            color: #212529 !important;
+            color: var(--admin-text) !important;
             font-size: 1.4rem !important;
         }
         table tbody td {
-            color: #212529;
+            color: var(--admin-text);
             font-weight: 600;
+            background-color: var(--admin-card-bg);
         }
         table thead th {
-            background-color: #e9ecef;
-            color: #212529;
+            background-color: var(--admin-table-head);
+            color: var(--admin-text);
             font-weight: 700;
-            border-color: #dee2e6;
+            border-color: var(--admin-border);
         }
         .text-muted {
-            color: #6c757d !important;
+            color: var(--admin-muted) !important;
             font-weight: 500 !important;
+        }
+        .navbar-light.bg-white,
+        .table,
+        .table-responsive,
+        .alert,
+        .main-content .navbar,
+        .main-content .nav-link,
+        .main-content span,
+        .main-content p,
+        .main-content td,
+        .main-content th,
+        .main-content h1,
+        .main-content h2,
+        .main-content h3,
+        .main-content h4,
+        .main-content h5,
+        .main-content h6 {
+            color: var(--admin-text) !important;
+        }
+
+        .navbar-light.bg-white,
+        .main-content .navbar {
+            background-color: var(--admin-card-bg) !important;
+        }
+
+        .table td,
+        .table th {
+            border-color: var(--admin-border);
         }
         .badge {
             font-weight: 700;

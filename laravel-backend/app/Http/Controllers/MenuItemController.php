@@ -47,6 +47,8 @@ class MenuItemController extends Controller
                 'price' => 'required|numeric',
                 'description' => 'nullable|string',
                 'category' => 'nullable|string|max:255',
+                'ingredients' => 'nullable|array',
+                'allergens' => 'nullable|array',
                 'karenderia_id' => 'nullable|exists:karenderias,id',
             ]);
 
@@ -78,6 +80,10 @@ class MenuItemController extends Controller
                 }
                 
                 $validatedData['karenderia_id'] = $karenderia->id;
+            }
+
+            if ((!isset($validatedData['allergens']) || empty($validatedData['allergens'])) && isset($validatedData['ingredients'])) {
+                $validatedData['allergens'] = $this->inferAllergensFromIngredients($validatedData['ingredients']);
             }
 
             $menuItem = MenuItem::create($validatedData);
@@ -178,7 +184,21 @@ class MenuItemController extends Controller
                 return response()->json(['error' => 'Unauthorized: You can only update your own menu items'], 403);
             }
 
-            $menuItem->update($request->all());
+            $validatedData = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'price' => 'sometimes|numeric',
+                'description' => 'nullable|string',
+                'category' => 'nullable|string|max:255',
+                'ingredients' => 'nullable|array',
+                'allergens' => 'nullable|array',
+                'is_available' => 'sometimes|boolean'
+            ]);
+
+            if (array_key_exists('ingredients', $validatedData) && (!array_key_exists('allergens', $validatedData) || empty($validatedData['allergens']))) {
+                $validatedData['allergens'] = $this->inferAllergensFromIngredients($validatedData['ingredients'] ?? []);
+            }
+
+            $menuItem->update($validatedData);
 
             return response()->json(['message' => 'Menu item updated successfully', 'menuItem' => $menuItem]);
             
@@ -244,6 +264,46 @@ class MenuItemController extends Controller
             'date' => $date,
             'karenderia_id' => $karenderia->id
         ]);
+    }
+
+    private function inferAllergensFromIngredients(array $ingredients): array
+    {
+        $keywordMap = [
+            'Peanuts' => ['peanut', 'mani', 'kare-kare', 'groundnut'],
+            'Tree Nuts' => ['almond', 'cashew', 'walnut', 'pecan', 'hazelnut', 'pistachio', 'macadamia'],
+            'Shellfish' => ['shrimp', 'hipon', 'crab', 'alimango', 'lobster', 'talaba', 'oyster', 'sugpo'],
+            'Fish' => ['fish', 'isda', 'bangus', 'tilapia', 'tuna', 'bagoong', 'patis', 'dilis'],
+            'Dairy' => ['milk', 'gatas', 'cheese', 'butter', 'cream', 'yogurt', 'whey'],
+            'Eggs' => ['egg', 'eggs', 'itlog', 'mayonnaise', 'kwek-kwek', 'balut'],
+            'Soy' => ['soy', 'toyo', 'soy sauce', 'tofu', 'tokwa', 'miso', 'edamame'],
+            'Wheat' => ['wheat', 'harina', 'flour', 'bread', 'noodle', 'pasta', 'gluten', 'lumpia wrapper'],
+            'Sesame' => ['sesame', 'tahini', 'benne']
+        ];
+
+        $detected = [];
+        foreach ($ingredients as $ingredient) {
+            if (is_array($ingredient)) {
+                $raw = $ingredient['ingredientName'] ?? $ingredient['name'] ?? $ingredient['ingredient'] ?? '';
+            } else {
+                $raw = (string) $ingredient;
+            }
+
+            $ingredientName = strtolower(trim($raw));
+            if ($ingredientName === '') {
+                continue;
+            }
+
+            foreach ($keywordMap as $allergen => $keywords) {
+                foreach ($keywords as $keyword) {
+                    if (str_contains($ingredientName, strtolower($keyword))) {
+                        $detected[$allergen] = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return array_keys($detected);
     }
 
     public function getMonthlySales(Request $request)
@@ -763,7 +823,10 @@ class MenuItemController extends Controller
 
             // Verify the karenderia exists and is approved
             $karenderia = \App\Models\Karenderia::where('id', $karenderiaId)
-                ->where('status', 'approved')
+                ->where(function ($query) {
+                    $query->where('status', 'approved')
+                        ->orWhere('status', 'active');
+                })
                 ->first();
                 
             if (!$karenderia) {
@@ -779,15 +842,8 @@ class MenuItemController extends Controller
                 ->where('is_available', true) // Only show available items
                 ->get()
                 ->map(function ($item) {
-                    // Parse ingredients and allergens, add sample data if empty
-                    $ingredients = $item->ingredients ? json_decode($item->ingredients, true) : [];
-                    $allergens = $item->allergens ? json_decode($item->allergens, true) : [];
-                    
-                    // Add sample allergen data if empty (for demo purposes)
-                    if (empty($ingredients) && empty($allergens)) {
-                        $ingredients = ['pork', 'onions', 'bell peppers', 'soy sauce', 'vinegar'];
-                        $allergens = ['peanut mild', 'soy moderate']; // Example allergen severity
-                    }
+                    $ingredients = $this->parseArrayField($item->ingredients);
+                    $allergens = $this->parseArrayField($item->allergens);
                     
                     return [
                         'id' => $item->id,
@@ -827,8 +883,8 @@ class MenuItemController extends Controller
         try {
             $menuItem = MenuItem::with('karenderia')->findOrFail($id);
             
-            // Verify the karenderia is approved
-            if ($menuItem->karenderia->status !== 'approved') {
+            // Verify the karenderia is approved/active
+            if (!in_array($menuItem->karenderia->status, ['approved', 'active'], true) && !$menuItem->karenderia->is_approved) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Menu item not available',
@@ -836,30 +892,8 @@ class MenuItemController extends Controller
                 ], 404);
             }
 
-            // Parse ingredients and allergens, add sample data if empty
-            $ingredients = $menuItem->ingredients ? json_decode($menuItem->ingredients, true) : [];
-            $allergens = $menuItem->allergens ? json_decode($menuItem->allergens, true) : [];
-            
-            // Add sample allergen data if empty (for demo purposes)
-            if (empty($ingredients) && empty($allergens)) {
-                switch(strtolower($menuItem->name)) {
-                    case 'sisig':
-                        $ingredients = ['pork', 'onions', 'bell peppers', 'soy sauce', 'vinegar', 'eggs'];
-                        $allergens = ['peanut mild', 'soy moderate', 'egg low'];
-                        break;
-                    case 'adobo':
-                        $ingredients = ['chicken', 'pork', 'soy sauce', 'vinegar', 'garlic', 'bay leaves'];
-                        $allergens = ['soy moderate'];
-                        break;
-                    case 'lechon kawali':
-                        $ingredients = ['pork belly', 'salt', 'pepper', 'oil'];
-                        $allergens = ['peanut mild']; // if cooked in peanut oil
-                        break;
-                    default:
-                        $ingredients = ['pork', 'onions', 'bell peppers', 'soy sauce', 'vinegar'];
-                        $allergens = ['peanut mild', 'soy moderate'];
-                }
-            }
+            $ingredients = $this->parseArrayField($menuItem->ingredients);
+            $allergens = $this->parseArrayField($menuItem->allergens);
 
             $menuItemData = [
                 'id' => $menuItem->id,
@@ -896,5 +930,19 @@ class MenuItemController extends Controller
                 'data' => null
             ], 500);
         }
+    }
+
+    private function parseArrayField($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 }

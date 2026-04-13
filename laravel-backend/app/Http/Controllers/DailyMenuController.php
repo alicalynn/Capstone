@@ -101,9 +101,26 @@ class DailyMenuController extends Controller
                 ->first();
 
             if ($existingEntry) {
+                $additionalQty = (int) $validatedData['quantity'];
+                $existingEntry->quantity = (int) $existingEntry->quantity + $additionalQty;
+                $existingEntry->original_quantity = (int) $existingEntry->original_quantity + $additionalQty;
+
+                if (array_key_exists('special_price', $validatedData)) {
+                    $existingEntry->special_price = $validatedData['special_price'];
+                }
+
+                if (array_key_exists('notes', $validatedData)) {
+                    $existingEntry->notes = $validatedData['notes'];
+                }
+
+                $existingEntry->is_available = true;
+                $existingEntry->save();
+                $existingEntry->load(['menuItem', 'karenderia']);
+
                 return response()->json([
-                    'error' => 'This menu item is already scheduled for this meal type on this date'
-                ], 409);
+                    'message' => 'Existing daily menu item updated with additional quantity',
+                    'data' => $existingEntry
+                ]);
             }
 
             // Create daily menu entry
