@@ -5,7 +5,7 @@ namespace App\Http\Controllers\web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Karenderia;
 
@@ -60,22 +60,27 @@ class AdminWebController extends Controller
 
     public function dashboard()
     {
-        $stats = [
-            'total_users' => User::count(),
-            'total_customers' => User::where('role', 'customer')->count(),
-            'total_karenderia_owners' => User::where('role', 'karenderia_owner')->count(),
-            'pending_karenderias' => Karenderia::where('status', 'pending')->count(),
-            'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
-            'rejected_karenderias' => Karenderia::where('status', 'rejected')->count(),
-        ];
+        try {
+            $stats = [
+                'total_users' => User::count(),
+                'total_customers' => User::where('role', 'customer')->count(),
+                'total_karenderia_owners' => User::where('role', 'karenderia_owner')->count(),
+                'pending_karenderias' => Karenderia::where('status', 'pending')->count(),
+                'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
+                'rejected_karenderias' => Karenderia::where('status', 'rejected')->count(),
+            ];
 
-        $recent_registrations = Karenderia::with('owner')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
+            $recent_registrations = Karenderia::with('owner')
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_registrations'))
-            ->with('pendingCount', $stats['pending_karenderias']);
+            return view('admin.dashboard', compact('stats', 'recent_registrations'))
+                ->with('pendingCount', $stats['pending_karenderias']);
+        } catch (\Exception $e) {
+            \Log::error('Admin dashboard error', ['error' => $e->getMessage()]);
+            return redirect()->route('admin.login')->withErrors('Error loading dashboard. Please try again.');
+        }
     }
 
     public function users()

@@ -93,12 +93,6 @@
                                 <i class="fas fa-sign-in-alt me-2"></i>Sign In
                             </button>
                         </form>
-                        
-                        <div class="mt-3 text-center">
-                            <small class="text-muted">
-                                Debug Info: CSRF Token = <span id="csrfToken">{{ csrf_token() }}</span>
-                            </small>
-                        </div>
                     </div>
                 </div>
                 

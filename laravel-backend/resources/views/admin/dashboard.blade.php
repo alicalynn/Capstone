@@ -4,6 +4,20 @@
 @section('page-title', 'Admin Dashboard')
 
 @section('content')
+@php
+    $customerPercent = $stats['total_users'] > 0 ? ($stats['total_customers'] / $stats['total_users']) * 100 : 0;
+    $ownerPercent = $stats['total_users'] > 0 ? ($stats['total_karenderia_owners'] / $stats['total_users']) * 100 : 0;
+@endphp
+
+<style>
+    :root {
+        --customer-width: {{ round($customerPercent, 2) }}%;
+        --owner-width: {{ round($ownerPercent, 2) }}%;
+    }
+    .progress-bar-customer { width: var(--customer-width); }
+    .progress-bar-owner { width: var(--owner-width); }
+</style>
+
 <div class="row mb-4">
     <!-- Statistics Cards -->
     <div class="col-md-3 mb-3">
@@ -98,9 +112,9 @@
                                 <tr>
                                     <td>
                                         <strong>{{ $karenderia->name }}</strong>
-                                        <br><small class="text-muted">{{ Str::limit($karenderia->description, 50) }}</small>
+                                        <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($karenderia->description, 50) }}</small>
                                     </td>
-                                    <td>{{ $karenderia->owner->name ?? 'N/A' }}</td>
+                                    <td>{{ $karenderia->owner ? $karenderia->owner->name : 'N/A' }}</td>
                                     <td>
                                         @if($karenderia->status == 'pending')
                                             <span class="badge bg-warning">Pending</span>
@@ -175,7 +189,7 @@
                         <span>{{ $stats['total_customers'] }}</span>
                     </div>
                     <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-primary" style="width: {{ $stats['total_users'] > 0 ? ($stats['total_customers'] / $stats['total_users']) * 100 : 0 }}%"></div>
+                        <div class="progress-bar bg-primary progress-bar-customer"></div>
                     </div>
                 </div>
                 <div class="mb-0">
@@ -184,7 +198,7 @@
                         <span>{{ $stats['total_karenderia_owners'] }}</span>
                     </div>
                     <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-success" style="width: {{ $stats['total_users'] > 0 ? ($stats['total_karenderia_owners'] / $stats['total_users']) * 100 : 0 }}%"></div>
+                        <div class="progress-bar bg-success progress-bar-owner"></div>
                     </div>
                 </div>
             </div>
