@@ -295,19 +295,21 @@ class AuthController extends Controller
 
         // Supplier login approval check
         if ($user->role === 'supplier') {
-            if ($user->application_status === 'pending') {
+            if ($user->application_status !== 'approved') {
+                $status = $user->application_status ?? 'pending';
+
+                if ($status === 'rejected') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Your supplier application was rejected. Please contact admin support.',
+                        'status' => 'rejected',
+                    ], 403);
+                }
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Your supplier application is still pending admin approval.',
                     'status' => 'pending_approval',
-                ], 403);
-            }
-
-            if ($user->application_status === 'rejected') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Your supplier application was rejected. Please contact admin support.',
-                    'status' => 'rejected',
                 ], 403);
             }
         }

@@ -180,6 +180,11 @@ Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
     Route::post('/supplier/listings', [SupplierWorkflowController::class, 'createSupplierListing']);
     Route::put('/supplier/listings/{listingId}', [SupplierWorkflowController::class, 'updateSupplierListing']);
 
+    // Owner Suki supplier management
+    Route::get('/suki-suppliers', [SupplierWorkflowController::class, 'sukiSuppliers']);
+    Route::post('/suki-suppliers/{supplierId}', [SupplierWorkflowController::class, 'markSukiSupplier']);
+    Route::delete('/suki-suppliers/{supplierId}', [SupplierWorkflowController::class, 'unmarkSukiSupplier']);
+
     // Supply order workflow
     Route::post('/orders', [SupplierWorkflowController::class, 'createSupplyOrder']);
     Route::get('/orders/owner', [SupplierWorkflowController::class, 'ownerOrders']);

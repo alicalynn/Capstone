@@ -63,7 +63,10 @@ class AdminWebController extends Controller
     {
         $pendingKarenderias = Karenderia::where('status', 'pending')->count();
         $pendingSuppliers = User::where('role', 'supplier')
-            ->where('application_status', 'pending')
+            ->where(function ($query) {
+                $query->where('application_status', 'pending')
+                      ->orWhereNull('application_status');
+            })
             ->count();
 
         $stats = [
@@ -91,7 +94,12 @@ class AdminWebController extends Controller
     {
         $users = User::with('karenderia')->orderBy('created_at', 'desc')->paginate(20);
         $pendingCount = Karenderia::where('status', 'pending')->count()
-            + User::where('role', 'supplier')->where('application_status', 'pending')->count();
+            + User::where('role', 'supplier')
+                ->where(function ($query) {
+                    $query->where('application_status', 'pending')
+                          ->orWhereNull('application_status');
+                })
+                ->count();
         return view('admin.users', compact('users'))->with('pendingCount', $pendingCount);
     }
 
@@ -99,7 +107,12 @@ class AdminWebController extends Controller
     {
         $karenderias = Karenderia::with('owner')->orderBy('created_at', 'desc')->paginate(20);
         $pendingCount = Karenderia::where('status', 'pending')->count()
-            + User::where('role', 'supplier')->where('application_status', 'pending')->count();
+            + User::where('role', 'supplier')
+                ->where(function ($query) {
+                    $query->where('application_status', 'pending')
+                          ->orWhereNull('application_status');
+                })
+                ->count();
         return view('admin.karenderias', compact('karenderias'))->with('pendingCount', $pendingCount);
     }
 

@@ -69,11 +69,15 @@
                                                 </span>
                                             @endif
                                         @elseif($user->role === 'karenderia_owner')
-                                            @if($user->application_status === 'approved' || ($user->karenderia && $user->karenderia->status === 'approved'))
+                                            @if(!$user->karenderia)
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-info-circle"></i> No Application
+                                                </span>
+                                            @elseif($user->application_status === 'approved' || $user->karenderia->status === 'approved')
                                                 <span class="badge bg-success">
                                                     <i class="fas fa-check"></i> Verified
                                                 </span>
-                                            @elseif($user->application_status === 'rejected' || ($user->karenderia && $user->karenderia->status === 'rejected'))
+                                            @elseif($user->application_status === 'rejected' || $user->karenderia->status === 'rejected')
                                                 <span class="badge bg-danger">
                                                     <i class="fas fa-times"></i> Rejected
                                                 </span>

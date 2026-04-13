@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Inventory;
 use App\Models\Karenderia;
+use App\Models\KarenderiaSupplierSuki;
 use App\Models\SupplierInventoryItem;
 use App\Models\SupplyOrder;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,11 +16,33 @@ class SupplierWorkflowController extends Controller
 {
     public function marketplace(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $sukiOnly = filter_var($request->query('suki_only', false), FILTER_VALIDATE_BOOLEAN);
+
+        $ownerSukiSupplierIds = collect();
+        if ($user && $user->role === 'karenderia_owner') {
+            $karenderia = Karenderia::where('owner_id', $user->id)->first();
+            if ($karenderia) {
+                $ownerSukiSupplierIds = KarenderiaSupplierSuki::where('karenderia_id', $karenderia->id)
+                    ->pluck('supplier_id');
+            }
+        }
+
         $query = SupplierInventoryItem::query()
             ->with(['supplier:id,name,email'])
             ->where('is_active', true)
             ->where('available_stock', '>', 0)
             ->orderBy('item_name');
+
+        if ($sukiOnly && $ownerSukiSupplierIds->count() > 0) {
+            $query->whereIn('supplier_id', $ownerSukiSupplierIds->all());
+        }
+
+        if ($sukiOnly && $ownerSukiSupplierIds->count() === 0) {
+            return response()->json([
+                'data' => [],
+            ]);
+        }
 
         if ($request->filled('category')) {
             $query->where('category', $request->string('category'));
@@ -32,8 +57,104 @@ class SupplierWorkflowController extends Controller
             });
         }
 
+        $listings = $query->get()->map(function (SupplierInventoryItem $item) use ($ownerSukiSupplierIds) {
+            $item->is_suki = $ownerSukiSupplierIds->contains($item->supplier_id);
+            return $item;
+        });
+
         return response()->json([
-            'data' => $query->get(),
+            'data' => $listings,
+        ]);
+    }
+
+    public function sukiSuppliers(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'karenderia_owner') {
+            return response()->json(['error' => 'Only karenderia owners can manage Suki suppliers'], 403);
+        }
+
+        $karenderia = Karenderia::where('owner_id', $user->id)->first();
+        if (!$karenderia) {
+            return response()->json(['error' => 'No karenderia found for this account'], 403);
+        }
+
+        $supplierIds = KarenderiaSupplierSuki::where('karenderia_id', $karenderia->id)
+            ->pluck('supplier_id');
+
+        if ($supplierIds->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $suppliers = User::query()
+            ->whereIn('id', $supplierIds)
+            ->where('role', 'supplier')
+            ->select(['id', 'name', 'email'])
+            ->get()
+            ->map(function (User $supplier) {
+                $supplier->listing_count = SupplierInventoryItem::where('supplier_id', $supplier->id)
+                    ->where('is_active', true)
+                    ->count();
+                return $supplier;
+            });
+
+        return response()->json([
+            'data' => $suppliers,
+        ]);
+    }
+
+    public function markSukiSupplier(Request $request, int $supplierId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'karenderia_owner') {
+            return response()->json(['error' => 'Only karenderia owners can mark Suki suppliers'], 403);
+        }
+
+        $karenderia = Karenderia::where('owner_id', $user->id)->first();
+        if (!$karenderia) {
+            return response()->json(['error' => 'No karenderia found for this account'], 403);
+        }
+
+        $supplier = User::where('id', $supplierId)->where('role', 'supplier')->first();
+        if (!$supplier) {
+            return response()->json(['error' => 'Supplier not found'], 404);
+        }
+
+        KarenderiaSupplierSuki::firstOrCreate([
+            'karenderia_id' => $karenderia->id,
+            'supplier_id' => $supplier->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Supplier added to Suki list',
+            'data' => [
+                'supplier_id' => $supplier->id,
+                'supplier_name' => $supplier->name,
+            ],
+        ]);
+    }
+
+    public function unmarkSukiSupplier(Request $request, int $supplierId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'karenderia_owner') {
+            return response()->json(['error' => 'Only karenderia owners can remove Suki suppliers'], 403);
+        }
+
+        $karenderia = Karenderia::where('owner_id', $user->id)->first();
+        if (!$karenderia) {
+            return response()->json(['error' => 'No karenderia found for this account'], 403);
+        }
+
+        KarenderiaSupplierSuki::where('karenderia_id', $karenderia->id)
+            ->where('supplier_id', $supplierId)
+            ->delete();
+
+        return response()->json([
+            'message' => 'Supplier removed from Suki list',
         ]);
     }
 
@@ -286,17 +407,31 @@ class SupplierWorkflowController extends Controller
             return response()->json(['error' => 'This order can no longer be updated'], 422);
         }
 
-        DB::transaction(function () use ($order, $validated) {
+        $previousStatus = $order->status;
+
+        DB::transaction(function () use ($order, $validated, $previousStatus) {
+            $newStatus = $validated['status'];
+
             if ($validated['status'] === 'cancelled' && $order->status !== 'cancelled') {
                 foreach ($order->items as $item) {
                     if ($item->supplierItem) {
                         $item->supplierItem->increment('available_stock', (float) $item->quantity);
                     }
                 }
+
+                // Roll back owner kitchen stock if it was already added on confirmation.
+                if ($previousStatus === 'confirmed') {
+                    $this->syncKitchenStockFromSupplyOrder($order, false);
+                }
+            }
+
+            // Treat "confirmed" as payment confirmed and move stocks into owner kitchen inventory once.
+            if ($newStatus === 'confirmed' && $previousStatus !== 'confirmed') {
+                $this->syncKitchenStockFromSupplyOrder($order, true);
             }
 
             $order->update([
-                'status' => $validated['status'],
+                'status' => $newStatus,
             ]);
         });
 
@@ -308,5 +443,43 @@ class SupplierWorkflowController extends Controller
                 'items.supplierItem:id,item_name,unit',
             ]),
         ]);
+    }
+
+    private function syncKitchenStockFromSupplyOrder(SupplyOrder $order, bool $increase): void
+    {
+        foreach ($order->items as $item) {
+            $supplierItem = $item->supplierItem;
+            if (!$supplierItem) {
+                continue;
+            }
+
+            $inventoryItem = Inventory::where('karenderia_id', $order->karenderia_id)
+                ->whereRaw('LOWER(item_name) = ?', [mb_strtolower(trim((string) $supplierItem->item_name))])
+                ->first();
+
+            if (!$inventoryItem) {
+                $inventoryItem = new Inventory();
+                $inventoryItem->karenderia_id = $order->karenderia_id;
+                $inventoryItem->item_name = $supplierItem->item_name;
+                $inventoryItem->description = $supplierItem->description;
+                $inventoryItem->category = $supplierItem->category ?: 'Supplies';
+                $inventoryItem->unit = $supplierItem->unit;
+                $inventoryItem->minimum_stock = 0;
+                $inventoryItem->unit_cost = (float) $item->unit_price;
+                $inventoryItem->current_stock = 0;
+                $inventoryItem->supplier = 'Supplier Marketplace';
+            }
+
+            $stockDelta = (float) $item->quantity;
+            $currentStock = (float) $inventoryItem->current_stock;
+            $inventoryItem->current_stock = $increase
+                ? ($currentStock + $stockDelta)
+                : max(0, $currentStock - $stockDelta);
+
+            // Keep recent purchase pricing on sync operations.
+            $inventoryItem->unit_cost = (float) $item->unit_price;
+            $inventoryItem->last_restocked = now();
+            $inventoryItem->save();
+        }
     }
 }

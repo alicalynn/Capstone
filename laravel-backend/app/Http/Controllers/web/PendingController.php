@@ -17,7 +17,10 @@ class PendingController extends Controller
             ->paginate(10);
 
         $pendingSuppliers = User::where('role', 'supplier')
-            ->where('application_status', 'pending')
+            ->where(function ($query) {
+                $query->where('application_status', 'pending')
+                      ->orWhereNull('application_status');
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 

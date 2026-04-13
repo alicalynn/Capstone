@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -240,23 +242,33 @@ class OrderController extends Controller
                 }
             }
 
-            // Update order status
-            $order->status = $validatedData['orderStatus'];
-            
-            // Update order tracking with timestamps
-            $tracking = $order->order_tracking ?? [];
-            $tracking['status'] = $validatedData['orderStatus'];
-            $tracking['updated_at'] = now()->toISOString();
-            
-            if ($validatedData['orderStatus'] === 'preparing') {
-                $tracking['prepared_at'] = $validatedData['preparedAt'] ?? now()->toISOString();
-            } elseif ($validatedData['orderStatus'] === 'completed') {
-                $tracking['completed_at'] = $validatedData['completedAt'] ?? now()->toISOString();
-                $order->payment_status = 'paid'; // Automatically mark as paid when completed
-            }
-            
-            $order->order_tracking = $tracking;
-            $order->save();
+            $previousStatus = $order->status;
+            $newStatus = $validatedData['orderStatus'];
+
+            DB::transaction(function () use ($order, $validatedData, $previousStatus, $newStatus) {
+                // Update order status
+                $order->status = $newStatus;
+
+                // Update order tracking with timestamps
+                $tracking = $order->order_tracking ?? [];
+                $tracking['status'] = $newStatus;
+                $tracking['updated_at'] = now()->toISOString();
+
+                if ($newStatus === 'preparing') {
+                    $tracking['prepared_at'] = $validatedData['preparedAt'] ?? now()->toISOString();
+                } elseif ($newStatus === 'completed') {
+                    $tracking['completed_at'] = $validatedData['completedAt'] ?? now()->toISOString();
+                    $order->payment_status = 'paid';
+                }
+
+                $order->order_tracking = $tracking;
+                $order->save();
+
+                // Apply one-time stock deduction only on first transition to completed.
+                if ($newStatus === 'completed' && $previousStatus !== 'completed') {
+                    $this->deductKitchenStockForCompletedOrder((int) $order->id, (int) $order->karenderia_id);
+                }
+            });
 
             return response()->json([
                 'success' => true,
@@ -283,5 +295,107 @@ class OrderController extends Controller
                 'message' => 'Failed to update order status'
             ], 500);
         }
+    }
+
+    private function deductKitchenStockForCompletedOrder(int $orderId, int $karenderiaId): void
+    {
+        $orderItems = DB::table('order_items')
+            ->where('order_id', $orderId)
+            ->get(['menu_item_id', 'quantity']);
+
+        $menuItemNames = DB::table('order_items')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->where('order_items.order_id', $orderId)
+            ->pluck('menu_items.name', 'order_items.menu_item_id');
+
+        foreach ($orderItems as $orderItem) {
+            $orderQuantity = (float) $orderItem->quantity;
+            if ($orderQuantity <= 0) {
+                continue;
+            }
+
+            $deductedViaIngredients = false;
+
+            if (!empty($orderItem->menu_item_id)) {
+                $menuItem = DB::table('menu_items')
+                    ->where('id', $orderItem->menu_item_id)
+                    ->first(['ingredients']);
+
+                if ($menuItem && !empty($menuItem->ingredients)) {
+                    $ingredients = is_array($menuItem->ingredients)
+                        ? $menuItem->ingredients
+                        : json_decode((string) $menuItem->ingredients, true);
+
+                    if (is_array($ingredients) && count($ingredients) > 0) {
+                        foreach ($ingredients as $ingredient) {
+                            $ingredientName = $this->resolveIngredientName($ingredient);
+                            if (!$ingredientName) {
+                                continue;
+                            }
+
+                            $perOrderUsage = $this->resolveIngredientUsage($ingredient);
+                            $totalUsage = $perOrderUsage * $orderQuantity;
+                            $this->decrementInventoryItem($karenderiaId, $ingredientName, $totalUsage);
+                            $deductedViaIngredients = true;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: use menu item name directly when no structured ingredient data exists.
+            $fallbackName = $orderItem->menu_item_id ? ($menuItemNames[$orderItem->menu_item_id] ?? null) : null;
+            if (!$deductedViaIngredients && is_string($fallbackName) && trim($fallbackName) !== '') {
+                $this->decrementInventoryItem($karenderiaId, trim($fallbackName), $orderQuantity);
+            }
+        }
+    }
+
+    private function resolveIngredientName($ingredient): ?string
+    {
+        if (is_string($ingredient)) {
+            return trim($ingredient) !== '' ? trim($ingredient) : null;
+        }
+
+        if (is_array($ingredient)) {
+            $name = $ingredient['ingredientName'] ?? $ingredient['name'] ?? $ingredient['ingredient'] ?? $ingredient['item_name'] ?? null;
+            if (is_string($name) && trim($name) !== '') {
+                return trim($name);
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveIngredientUsage($ingredient): float
+    {
+        if (!is_array($ingredient)) {
+            return 1.0;
+        }
+
+        $usage = $ingredient['quantity'] ?? $ingredient['amount'] ?? $ingredient['qty'] ?? 1;
+        $usage = (float) $usage;
+
+        return $usage > 0 ? $usage : 1.0;
+    }
+
+    private function decrementInventoryItem(int $karenderiaId, string $itemName, float $amount): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $normalizedName = mb_strtolower(trim($itemName));
+
+        $inventoryItem = Inventory::where('karenderia_id', $karenderiaId)
+            ->whereRaw('LOWER(item_name) = ?', [$normalizedName])
+            ->first();
+
+        if (!$inventoryItem) {
+            return;
+        }
+
+        $current = (float) $inventoryItem->current_stock;
+        $inventoryItem->current_stock = max(0, $current - $amount);
+        $inventoryItem->save();
     }
 }

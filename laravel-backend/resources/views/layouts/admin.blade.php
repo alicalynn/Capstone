@@ -8,18 +8,24 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        body {
+            color: #212529;
+            font-weight: 500;
+        }
         .sidebar {
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         .sidebar .nav-link {
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.95);
             border-radius: 8px;
             margin: 2px 0;
+            font-weight: 600;
         }
         .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255,255,255,0.15);
             color: white;
+            font-weight: 700;
         }
         .main-content {
             background-color: #f8f9fa;
@@ -28,6 +34,20 @@
             border: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .card-title {
+            color: #495057 !important;
+            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            font-weight: 700;
+        }
+        .card-header h5, .card-header h6 {
+            font-weight: 800;
+            color: #212529 !important;
+        }
         .stat-card {
             border-left: 4px solid;
         }
@@ -35,9 +55,35 @@
         .stat-card.success { border-left-color: #28a745; }
         .stat-card.warning { border-left-color: #ffc107; }
         .stat-card.danger { border-left-color: #dc3545; }
+        .stat-card h3 {
+            font-weight: 800 !important;
+            color: inherit !important;
+        }
         .navbar-brand {
             font-weight: bold;
-            color: #667eea !important;
+            color: #212529 !important;
+            font-size: 1.4rem !important;
+        }
+        table tbody td {
+            color: #212529;
+            font-weight: 600;
+        }
+        table thead th {
+            background-color: #e9ecef;
+            color: #212529;
+            font-weight: 700;
+            border-color: #dee2e6;
+        }
+        .text-muted {
+            color: #6c757d !important;
+            font-weight: 500 !important;
+        }
+        .badge {
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .btn {
+            font-weight: 700;
         }
     </style>
 </head>
