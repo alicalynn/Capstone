@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\MenuItem;
+use Illuminate\Support\Facades\Log;
 
 class MenuItemController extends Controller
 {
@@ -254,15 +255,54 @@ class MenuItemController extends Controller
         $karenderia = \App\Models\Karenderia::where('owner_id', $user->id)->first();
         
         if (!$karenderia) {
-            return response()->json(['sales' => 0, 'orders' => 0, 'date' => $date]);
+            return response()->json([
+                'data' => [
+                    'date' => $date,
+                    'totalSales' => 0,
+                    'totalOrders' => 0,
+                    'popularItems' => []
+                ]
+            ]);
         }
 
-        // Mock data for now - replace with actual sales calculation
+        $menuItems = MenuItem::where('karenderia_id', $karenderia->id)
+            ->get(['id', 'name', 'price', 'total_orders']);
+
+        $totalOrders = (int) $menuItems->sum(function ($item) {
+            return (int) ($item->total_orders ?? 0);
+        });
+
+        $totalSales = (float) $menuItems->sum(function ($item) {
+            return ((float) ($item->price ?? 0)) * ((int) ($item->total_orders ?? 0));
+        });
+
+        $popularItems = $menuItems
+            ->filter(function ($item) {
+                return ((int) ($item->total_orders ?? 0)) > 0;
+            })
+            ->sortByDesc('total_orders')
+            ->take(5)
+            ->values()
+            ->map(function ($item) {
+                $quantity = (int) ($item->total_orders ?? 0);
+                $revenue = ((float) ($item->price ?? 0)) * $quantity;
+
+                return [
+                    'itemId' => (string) $item->id,
+                    'itemName' => $item->name,
+                    'quantity' => $quantity,
+                    'revenue' => round($revenue, 2)
+                ];
+            });
+
         return response()->json([
-            'sales' => 1500.00,
-            'orders' => 12,
-            'date' => $date,
-            'karenderia_id' => $karenderia->id
+            'data' => [
+                'date' => $date,
+                'totalSales' => round($totalSales, 2),
+                'totalOrders' => $totalOrders,
+                'popularItems' => $popularItems,
+                'karenderia_id' => $karenderia->id
+            ]
         ]);
     }
 
@@ -474,12 +514,12 @@ class MenuItemController extends Controller
     {
         try {
             $user = $request->user();
-            \Log::info('MyMenuItems called for user:', ['user_id' => $user->id, 'email' => $user->email]);
+            Log::info('MyMenuItems called for user:', ['user_id' => $user->id, 'email' => $user->email]);
             
             $karenderia = \App\Models\Karenderia::where('owner_id', $user->id)->first();
             
             if (!$karenderia) {
-                \Log::warning('No karenderia found for user:', ['user_id' => $user->id]);
+                Log::warning('No karenderia found for user:', ['user_id' => $user->id]);
                 return response()->json([
                     'success' => true,
                     'data' => [],
@@ -487,7 +527,7 @@ class MenuItemController extends Controller
                 ]);
             }
 
-            \Log::info('Found karenderia for user:', [
+            Log::info('Found karenderia for user:', [
                 'karenderia_id' => $karenderia->id, 
                 'karenderia_name' => $karenderia->name,
                 'owner_id' => $karenderia->owner_id
@@ -497,7 +537,7 @@ class MenuItemController extends Controller
                                 ->with('karenderia')
                                 ->get();
 
-            \Log::info('Found menu items:', [
+            Log::info('Found menu items:', [
                 'count' => $menuItems->count(),
                 'karenderia_id' => $karenderia->id,
                 'items' => $menuItems->map(function($item) {
@@ -524,7 +564,7 @@ class MenuItemController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error in myMenuItems:', ['error' => $e->getMessage()]);
+            Log::error('Error in myMenuItems:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to fetch menu items',

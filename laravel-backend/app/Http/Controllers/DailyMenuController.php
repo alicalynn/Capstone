@@ -264,7 +264,10 @@ class DailyMenuController extends Controller
                 ->where('meal_type', $mealType)
                 ->available() // Only available items with quantity > 0
                 ->whereHas('karenderia', function($q) {
-                    $q->where('is_approved', true)->where('is_active', true);
+                    $q->where(function ($statusQuery) {
+                        $statusQuery->where('status', 'approved')
+                            ->orWhere('status', 'active');
+                    });
                 });
 
             // If location provided, add distance filtering

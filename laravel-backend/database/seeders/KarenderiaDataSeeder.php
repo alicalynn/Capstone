@@ -7,8 +7,6 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Karenderia;
 use App\Models\MenuItem;
-use App\Models\Order;
-use App\Models\OrderItem;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\DB;
 
@@ -33,10 +31,12 @@ class KarenderiaDataSeeder extends Seeder
             'name' => 'Lola Maria\'s Kitchen',
             'owner_id' => $owner->id,
         ], [
+            'business_name' => 'Lola Maria\'s Kitchen',
             'description' => 'Authentic Filipino home-cooked meals served with love',
             'address' => '123 Rizal Street, Makati City, Metro Manila',
             'phone' => '+639123456789',
             'email' => 'lolakitchen@example.com',
+            'business_email' => 'lolakitchen@example.com',
             'latitude' => 14.5547,
             'longitude' => 121.0244,
             'opening_time' => '06:00:00',
@@ -55,10 +55,12 @@ class KarenderiaDataSeeder extends Seeder
             'name' => 'Tita Linda\'s Lutong Bahay',
             'owner_id' => $owner->id,
         ], [
+            'business_name' => 'Tita Linda\'s Lutong Bahay',
             'description' => 'Traditional Filipino comfort food',
             'address' => '456 Dela Rosa Avenue, Quezon City, Metro Manila',
             'phone' => '+639987654321',
             'email' => 'titalinda@example.com',
+            'business_email' => 'titalinda@example.com',
             'latitude' => 14.6760,
             'longitude' => 121.0437,
             'opening_time' => '07:00:00',
@@ -245,41 +247,9 @@ class KarenderiaDataSeeder extends Seeder
             ], $inventory);
         }
 
-        // Create sample orders
-        for ($i = 1; $i <= 10; $i++) {
-            $order = Order::create([
-                'customer_id' => $customer->id,
-                'karenderia_id' => $karenderia1->id,
-                'status' => ['delivered', 'preparing', 'confirmed'][rand(0, 2)],
-                'payment_status' => 'paid',
-                'payment_method' => ['cash', 'gcash'][rand(0, 1)],
-                'subtotal' => 250.00,
-                'delivery_fee' => 50.00,
-                'service_fee' => 15.00,
-                'tax' => 31.50,
-                'total_amount' => 346.50,
-                'total_cost' => 180.00,
-                'delivery_address' => '789 Sample Street, Test City',
-                'created_at' => now()->subDays(rand(1, 30))
-            ]);
-
-            // Add order items
-            $menuItem = MenuItem::where('karenderia_id', $karenderia1->id)->inRandomOrder()->first();
-            OrderItem::create([
-                'order_id' => $order->id,
-                'menu_item_id' => $menuItem->id,
-                'quantity' => rand(1, 3),
-                'unit_price' => $menuItem->price,
-                'unit_cost' => $menuItem->cost_price,
-                'total_price' => $menuItem->price * rand(1, 3),
-                'total_cost' => $menuItem->cost_price * rand(1, 3)
-            ]);
-        }
-
         $this->command->info('Sample karenderia data created successfully!');
         $this->command->info('- 2 Karenderias');
         $this->command->info('- 6 Menu Items');
         $this->command->info('- 3 Inventory Items');
-        $this->command->info('- 10 Sample Orders');
     }
 }

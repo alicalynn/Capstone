@@ -104,11 +104,14 @@ Route::prefix('karenderias')->group(function () {
     Route::get('/', [KarenderiaController::class, 'index']);
     Route::get('/search', [KarenderiaController::class, 'search']);
     Route::get('/nearby', [KarenderiaController::class, 'nearby']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/my-karenderia', [KarenderiaController::class, 'myKarenderia']);
+        Route::put('/my-karenderia', [KarenderiaController::class, 'updateMyKarenderiaData']);
+    });
     
     // Protected routes for karenderia owners (must come before {id} route)
     Route::middleware(['auth:sanctum', 'karenderia.approved'])->group(function () {
         Route::post('/', [KarenderiaController::class, 'store']);
-        Route::get('/my-karenderia', [KarenderiaController::class, 'myKarenderia']);
         Route::put('/{id}', [KarenderiaController::class, 'update']);
         Route::put('/{id}/data', [KarenderiaController::class, 'updateKarenderiaData']);
         Route::delete('/{id}', [KarenderiaController::class, 'destroy']);

@@ -14,7 +14,35 @@ class UserController extends Controller
     public function getProfile(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->load(['allergens', 'mealPlans']);
+        $user->load(['allergens', 'mealPlans', 'karenderia']);
+
+        $applicationStatus = $user->application_status;
+
+        // Keep owner account flags consistent with karenderia approval status.
+        if ($user->role === 'karenderia_owner' && $user->karenderia) {
+            $karenderiaStatus = strtolower((string) $user->karenderia->status);
+
+            if (in_array($karenderiaStatus, ['approved', 'active'], true)) {
+                $applicationStatus = 'approved';
+            } elseif ($karenderiaStatus === 'pending') {
+                $applicationStatus = 'pending';
+            } elseif (in_array($karenderiaStatus, ['rejected', 'inactive'], true)) {
+                $applicationStatus = 'rejected';
+            }
+
+            if ($applicationStatus !== $user->application_status) {
+                $user->application_status = $applicationStatus;
+            }
+
+            $shouldBeVerified = $applicationStatus === 'approved';
+            if ((bool) $user->verified !== $shouldBeVerified) {
+                $user->verified = $shouldBeVerified;
+            }
+
+            if ($user->isDirty(['application_status', 'verified'])) {
+                $user->save();
+            }
+        }
         
         return response()->json([
             'success' => true,
@@ -24,7 +52,7 @@ class UserController extends Controller
             'username' => $user->username,
             'phoneNumber' => $user->phone_number,
             'address' => $user->address,
-            'applicationStatus' => $user->application_status,
+            'applicationStatus' => $applicationStatus,
             'role' => $user->role,
             'photoURL' => $user->photo_url,
             'age' => $user->age,

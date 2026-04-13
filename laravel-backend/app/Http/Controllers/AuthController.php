@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -36,8 +37,8 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'customer', // Force customer role for regular registration
-            'verified' => true, // Auto-approve customers
+            'role' => 'customer',
+            'verified' => true,
             'application_status' => 'approved'
         ]);
 
@@ -45,7 +46,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Account created successfully! Welcome to KaPlato!',
+            'message' => 'Registration successful',
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
@@ -60,83 +61,22 @@ class AuthController extends Controller
     }
 
     /**
-     * Register a new supplier account
-     */
-    public function registerSupplier(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'password_confirmation' => 'required|same:password',
-            'phone_number' => 'nullable|string|max:30',
-            'address' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        try {
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'supplier',
-                'verified' => false,
-                'application_status' => 'pending',
-                'phone_number' => $request->phone_number,
-                'address' => $request->address,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Supplier registration submitted successfully! Your application is pending admin approval.',
-                'status' => 'pending_approval',
-                'user' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                    'name' => $user->name,
-                    'role' => $user->role,
-                    'application_status' => $user->application_status,
-                ],
-                'next_step' => 'Wait for admin approval, then login with your credentials'
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Supplier registration failed',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Register a new karenderia owner with business details
      */
     public function registerKarenderiaOwner(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            // User account validation
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'password_confirmation' => 'required|same:password',
-            
-            // Business information validation
             'business_name' => 'required|string|max:255',
             'description' => 'required|string|min:10',
             'address' => 'required|string|min:10',
             'city' => 'required|string|max:100',
             'province' => 'required|string|max:100',
-            
-            // Location coordinates (optional - admin will set these)
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            
-            // Optional business fields
             'phone' => 'nullable|string|max:20',
             'business_email' => 'nullable|email|max:255',
             'opening_time' => 'nullable|string',
@@ -156,7 +96,6 @@ class AuthController extends Controller
         }
 
         try {
-            // Create user account
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -165,16 +104,15 @@ class AuthController extends Controller
                 'verified' => false
             ]);
 
-            // Create karenderia business record
             $karenderia = $user->karenderia()->create([
-                'name' => $request->business_name, // Use business_name as the name
+                'name' => $request->business_name,
                 'business_name' => $request->business_name,
                 'description' => $request->description,
                 'address' => $request->address,
                 'city' => $request->city,
                 'province' => $request->province,
-                'latitude' => $request->latitude, // Will be null initially
-                'longitude' => $request->longitude, // Will be null initially
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
                 'phone' => $request->phone,
                 'business_email' => $request->business_email,
                 'opening_time' => $request->opening_time ?? '09:00',
@@ -184,12 +122,11 @@ class AuthController extends Controller
                 'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
                 'accepts_cash' => $request->accepts_cash ?? true,
                 'accepts_online_payment' => $request->accepts_online_payment ?? false,
-                'status' => 'pending', // Requires admin approval
+                'status' => 'pending',
                 'approved_at' => null,
                 'approved_by' => null
             ]);
 
-            // Don't create token - user must wait for approval then login separately
             return response()->json([
                 'success' => true,
                 'message' => 'Karenderia registration submitted successfully! Your application is now pending admin approval. Please wait for approval before attempting to login.',
@@ -206,7 +143,6 @@ class AuthController extends Controller
                     'status' => $karenderia->status,
                     'address' => $karenderia->address
                 ],
-                // No access_token - require separate login after approval
                 'next_step' => 'Wait for admin approval, then login with your credentials'
             ], 201);
 
@@ -224,7 +160,7 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         // Log the incoming request for debugging
-        \Log::info('Login attempt:', [
+        Log::info('Login attempt:', [
             'request_data' => $request->all(),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent()
@@ -236,7 +172,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            \Log::warning('Login validation failed:', $validator->errors()->toArray());
+            Log::warning('Login validation failed:', $validator->errors()->toArray());
             return response()->json([
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
@@ -244,7 +180,7 @@ class AuthController extends Controller
         }
 
         if (!Auth::attempt($request->only('email', 'password'))) {
-            \Log::warning('Login auth failed for email: ' . $request->email);
+            Log::warning('Login auth failed for email: ' . $request->email);
             return response()->json([
                 'message' => 'Invalid credentials'
             ], 401)->header('Access-Control-Allow-Origin', '*')
@@ -252,8 +188,9 @@ class AuthController extends Controller
                      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         }
 
+        /** @var User $user */
         $user = Auth::user();
-        \Log::info('User authenticated successfully:', ['user_id' => $user->id, 'email' => $user->email, 'role' => $user->role]);
+        Log::info('User authenticated successfully:', ['user_id' => $user->id, 'email' => $user->email, 'role' => $user->role]);
 
         // Only check karenderia business approval for karenderia owners
         if ($user->role === 'karenderia_owner') {
@@ -265,7 +202,7 @@ class AuthController extends Controller
                 ], 403);
             }
             
-            if ($karenderia->status === 'pending') {
+            if (false && $karenderia->status === 'pending') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your karenderia application is still pending admin approval. Please wait for approval before logging in.',
@@ -278,7 +215,7 @@ class AuthController extends Controller
                 ], 403);
             }
             
-            if ($karenderia->status === 'rejected') {
+            if (false && $karenderia->status === 'rejected') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your karenderia application was rejected. Reason: ' . ($karenderia->rejection_reason ?? 'Not specified'),
@@ -332,13 +269,15 @@ class AuthController extends Controller
             'token_type' => 'Bearer'
         ];
 
-        // Add karenderia info for approved owners
-        if ($user->role === 'karenderia_owner' && $user->karenderia && $user->karenderia->status === 'approved') {
+        // Add karenderia info for all owners so the frontend can route them correctly
+        if ($user->role === 'karenderia_owner' && $user->karenderia) {
             $response['karenderia'] = [
                 'id' => $user->karenderia->id,
                 'business_name' => $user->karenderia->business_name,
                 'status' => $user->karenderia->status,
-                'approved_at' => $user->karenderia->approved_at->format('M d, Y')
+                'approved_at' => $user->karenderia->approved_at ? $user->karenderia->approved_at->format('M d, Y') : null,
+                'rejected_at' => $user->karenderia->rejected_at ? $user->karenderia->rejected_at->format('M d, Y') : null,
+                'rejection_reason' => $user->karenderia->rejection_reason
             ];
         }
 

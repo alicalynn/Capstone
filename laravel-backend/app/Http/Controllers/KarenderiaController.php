@@ -247,6 +247,90 @@ class KarenderiaController extends Controller
     }
 
     /**
+     * Update the current owner's karenderia, including rejected applications.
+     */
+    public function updateMyKarenderiaData(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $karenderia = \App\Models\Karenderia::where('owner_id', $user->id)->first();
+
+            if (!$karenderia) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No karenderia application found for this owner'
+                ], 404);
+            }
+
+            $validatedData = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'business_name' => 'sometimes|string|max:255',
+                'description' => 'sometimes|string',
+                'address' => 'sometimes|string',
+                'phone' => 'nullable|string|max:20',
+                'email' => 'nullable|email',
+                'business_email' => 'nullable|email',
+                'city' => 'sometimes|string|max:100',
+                'province' => 'sometimes|string|max:100',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'opening_time' => 'nullable|date_format:H:i',
+                'closing_time' => 'nullable|date_format:H:i',
+                'operating_days' => 'nullable|array',
+                'delivery_fee' => 'nullable|numeric|min:0',
+                'delivery_time_minutes' => 'nullable|integer|min:0',
+                'accepts_cash' => 'nullable|boolean',
+                'accepts_online_payment' => 'nullable|boolean'
+            ]);
+
+            if (isset($validatedData['business_name'])) {
+                $validatedData['name'] = $validatedData['business_name'];
+            }
+
+            if (isset($validatedData['business_email'])) {
+                $validatedData['email'] = $validatedData['business_email'];
+            }
+
+            $wasRejected = in_array($karenderia->status, ['rejected', 'inactive'], true);
+
+            $updateData = array_merge($validatedData, [
+                'status' => $wasRejected ? 'pending' : $karenderia->status,
+            ]);
+
+            if ($wasRejected) {
+                $updateData['approved_at'] = null;
+                $updateData['approved_by'] = null;
+                $updateData['rejected_at'] = null;
+                $updateData['rejection_reason'] = null;
+            }
+
+            $karenderia->update($updateData);
+            $karenderia->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => $wasRejected
+                    ? 'Karenderia application resubmitted successfully. It is now pending admin review.'
+                    : 'Karenderia updated successfully',
+                'data' => $karenderia
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update karenderia application',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get status message for karenderia owner
      */
     private function getStatusMessage($status): string
