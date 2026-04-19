@@ -29,6 +29,7 @@ class Karenderia extends Model
         'approved_by',
         'rejected_at',
         'rejection_reason',
+        'reapplication_count',
         'business_permit',
         'logo_url',
         'images',

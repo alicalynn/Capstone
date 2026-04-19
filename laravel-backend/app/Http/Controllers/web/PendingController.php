@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Karenderia;
 use App\Models\User;
+use App\Mail\RejectNotification;
+use Illuminate\Support\Facades\Mail;
 
 class PendingController extends Controller
 {
@@ -68,10 +70,15 @@ class PendingController extends Controller
                 $karenderia->owner->application_status = 'rejected';
                 $karenderia->owner->verified = false;
                 $karenderia->owner->save();
+
+                // Send rejection notification email
+                Mail::to($karenderia->owner->email)->send(
+                    new RejectNotification($karenderia, $request->rejection_reason)
+                );
             }
 
             return redirect()->route('admin.pending')
-                ->with('success', "Karenderia '{$karenderia->name}' has been rejected.");
+                ->with('success', "Karenderia '{$karenderia->name}' has been rejected. Notification email sent to owner.");
         } catch (\Exception $e) {
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to reject karenderia. Please try again.');
@@ -108,6 +115,24 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to reject user. Please try again.');
         }
+    }
+
+    public function businessPermit(Request $request, $id)
+    {
+        $karenderia = Karenderia::findOrFail($id);
+        $permitPath = storage_path('app/public/' . $karenderia->business_permit);
+
+        if (!$karenderia->business_permit || !file_exists($permitPath)) {
+            abort(404, 'Business permit file not found.');
+        }
+
+        $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
+
+        if ($download) {
+            return response()->download($permitPath, basename($permitPath));
+        }
+
+        return response()->file($permitPath);
     }
 
     public function showPendingDashboard()

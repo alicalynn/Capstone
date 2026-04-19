@@ -90,9 +90,110 @@ class AdminWebController extends Controller
             ->with('pendingCount', $stats['pending_approvals']);
     }
 
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::with('karenderia')->orderBy('created_at', 'desc')->paginate(20);
+        $role = strtolower(trim((string) $request->get('role', '')));
+        $verifiedFilter = strtolower(trim((string) $request->get('verified', '')));
+        $appStatus = strtolower(trim((string) $request->get('app_status', '')));
+
+        // Normalize non-filter sentinel values from UI selects.
+        if (in_array($role, ['all', 'all_roles'], true)) {
+            $role = '';
+        }
+
+        if (in_array($verifiedFilter, ['all', 'all_users', 'any'], true)) {
+            $verifiedFilter = '';
+        }
+
+        if (in_array($appStatus, ['all', 'all_status', 'any'], true)) {
+            $appStatus = '';
+        }
+
+        $query = User::with('karenderia');
+
+        // Filter by role
+        if ($role !== '') {
+            $query->where('role', $role);
+        }
+
+        // Filter by verified status
+        if ($verifiedFilter !== '') {
+            $verified = in_array($verifiedFilter, ['yes', 'true', '1', 'verified'], true);
+            
+            if ($role === 'supplier' || $role === 'karenderia_owner') {
+                // For specific suppliers and owners, check application_status or karenderia status
+                if ($verified) {
+                    $query->where(function ($q) {
+                        $q->where('verified', true)
+                          ->orWhere('application_status', 'approved')
+                          ->orWhereHas('karenderia', function ($subQ) {
+                              $subQ->whereIn('status', ['approved', 'active']);
+                          });
+                    });
+                } else {
+                    $query->where(function ($q) {
+                        $q->where('application_status', '!=', 'approved')
+                          ->orWhereDoesntHave('karenderia');
+                    });
+                }
+            } else {
+                // For customers and others, or when no role is specified:
+                // Check both verified flag AND application_status
+                $query->where(function ($q) use ($verified) {
+                    if ($verified) {
+                        $q->where('verified', true)
+                          ->orWhere('application_status', 'approved')
+                          ->orWhereHas('karenderia', function ($subQ) {
+                              $subQ->whereIn('status', ['approved', 'active']);
+                          });
+                    } else {
+                        $q->where('verified', false)
+                          ->orWhere('application_status', '!=', 'approved')
+                          ->orWhereDoesntHave('karenderia');
+                    }
+                });
+            }
+        }
+
+        // Filter by application status (for owners and suppliers)
+        if ($appStatus !== '') {
+            $status = $appStatus;
+            if ($status === 'active') {
+                $query->where(function ($q) {
+                    $q->where('application_status', 'approved')
+                      ->orWhereHas('karenderia', function ($subQ) {
+                          $subQ->whereIn('status', ['approved', 'active']);
+                      });
+                });
+            } else {
+                $query->where(function ($q) use ($status) {
+                    $q->where('application_status', $status)
+                      ->orWhereHas('karenderia', function ($subQ) use ($status) {
+                          $subQ->where('status', $status);
+                      });
+                });
+            }
+        }
+
+        // Filter by registration date range (check for null, not just empty string)
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->get('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->get('date_to'));
+        }
+
+        // Search by name or email
+        if ($request->has('search') && $request->get('search') !== '') {
+            $search = strtolower($request->get('search'));
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"]);
+            });
+        }
+
+        $users = $query->orderBy('created_at', 'desc')->paginate(20);
+        
         $pendingCount = Karenderia::where('status', 'pending')->count()
             + User::where('role', 'supplier')
                 ->where(function ($query) {
@@ -100,7 +201,18 @@ class AdminWebController extends Controller
                           ->orWhereNull('application_status');
                 })
                 ->count();
-        return view('admin.users', compact('users'))->with('pendingCount', $pendingCount);
+        
+        // Pass filter parameters back to view for form persistence
+        $filters = [
+            'role' => $role,
+            'verified' => $verifiedFilter,
+            'app_status' => $appStatus,
+            'date_from' => $request->get('date_from', ''),
+            'date_to' => $request->get('date_to', ''),
+            'search' => $request->get('search', ''),
+        ];
+        
+        return view('admin.users', compact('users', 'filters'))->with('pendingCount', $pendingCount);
     }
 
     public function karenderias()

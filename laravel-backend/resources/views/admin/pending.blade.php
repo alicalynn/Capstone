@@ -25,6 +25,7 @@
                                     <th>Karenderia Details</th>
                                     <th>Owner Information</th>
                                     <th>Contact</th>
+                                    <th>Business Permit</th>
                                     <th>Application Date</th>
                                     <th>Actions</th>
                                 </tr>
@@ -57,6 +58,24 @@
                                                 <i class="fas fa-envelope"></i> {{ $karenderia->email }}
                                             @endif
                                         </div>
+                                    </td>
+                                    <td>
+                                        @if($karenderia->business_permit)
+                                            <div class="d-grid gap-1">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        data-permit-url="{{ route('admin.pending.permit', $karenderia->id) }}"
+                                                        data-business-name="{{ e($karenderia->name) }}"
+                                                        onclick="previewPermit(this)">
+                                                    <i class="fas fa-eye me-1"></i>Preview
+                                                </button>
+                                                <a href="{{ route('admin.pending.permit', ['id' => $karenderia->id, 'download' => 1]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-download me-1"></i>Download
+                                                </a>
+                                            </div>
+                                        @else
+                                            <span class="badge bg-danger">Missing Permit</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <span class="badge bg-light text-dark">{{ $karenderia->created_at->format('M d, Y') }}</span>
@@ -164,6 +183,30 @@
     </div>
 </div>
 
+<!-- Permit Preview Modal -->
+<div class="modal fade" id="permitPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-alt text-primary me-2"></i>
+                    Business Permit: <span id="permitBusinessName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="height: 75vh;">
+                <iframe id="permitPreviewFrame" src="" width="100%" height="100%" style="border: 0; border-radius: 8px;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <a id="permitOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                    <i class="fas fa-external-link-alt me-2"></i>Open in New Tab
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Approve Confirmation Modal -->
 <div class="modal fade" id="approveModal" tabindex="-1">
     <div class="modal-dialog">
@@ -210,20 +253,34 @@
                     <p>Are you sure you want to reject <strong id="rejectName"></strong>?</p>
                     
                     <div class="mb-3">
-                        <label for="rejection_reason" class="form-label">Reason for rejection <span class="text-danger">*</span></label>
+                        <label for="rejection_reason_select" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                        <select class="form-select" id="rejection_reason_select" onchange="updateReasonText(this.value)" required>
+                            <option value="">-- Select a reason --</option>
+                            <option value="Invalid permit">Invalid permit</option>
+                            <option value="Suspicious activity">Suspicious activity</option>
+                            <option value="Incomplete information">Incomplete information</option>
+                            <option value="custom">Custom reason...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rejection_reason" class="form-label">Details <span class="text-danger">*</span></label>
                         <textarea class="form-control" id="rejection_reason" name="rejection_reason" 
-                                  rows="3" placeholder="Please provide a reason for rejection..." required></textarea>
+                                  rows="3" placeholder="Add custom details or explanation..." required></textarea>
+                        <small class="text-muted d-block mt-1">
+                            The applicant will receive this message via email along with a link to reapply.
+                        </small>
                     </div>
                     
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        This action will notify the applicant about the rejection and the reason provided.
+                        This action will notify the applicant about the rejection. They can reapply with updated documents immediately.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-times me-2"></i>Reject
+                        <i class="fas fa-times me-2"></i>Reject Application
                     </button>
                 </div>
             </form>
@@ -248,7 +305,18 @@ function showRejectModal(button) {
     document.getElementById('rejectName').textContent = name;
     document.getElementById('rejectForm').action = `/admin/pending/${id}/reject`;
     document.getElementById('rejection_reason').value = '';
+    document.getElementById('rejection_reason_select').value = '';
     new bootstrap.Modal(document.getElementById('rejectModal')).show();
+}
+
+function updateReasonText(selectedValue) {
+    const textarea = document.getElementById('rejection_reason');
+    if (selectedValue === 'custom' || selectedValue === '') {
+        textarea.value = '';
+        textarea.placeholder = 'Add custom details or explanation...';
+    } else {
+        textarea.value = selectedValue;
+    }
 }
 
 function approveUser(button) {
@@ -267,5 +335,19 @@ function showRejectUserModal(button) {
     document.getElementById('rejection_reason').value = '';
     new bootstrap.Modal(document.getElementById('rejectModal')).show();
 }
+
+function previewPermit(button) {
+    const url = button.dataset.permitUrl;
+    const businessName = button.dataset.businessName;
+
+    document.getElementById('permitBusinessName').textContent = businessName;
+    document.getElementById('permitPreviewFrame').src = url;
+    document.getElementById('permitOpenNewTab').href = url;
+    new bootstrap.Modal(document.getElementById('permitPreviewModal')).show();
+}
+
+document.getElementById('permitPreviewModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('permitPreviewFrame').src = '';
+});
 </script>
 @endsection
