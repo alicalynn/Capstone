@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SupplierWorkflowController extends Controller
 {
@@ -160,19 +161,32 @@ class SupplierWorkflowController extends Controller
 
     public function supplierListings(Request $request): JsonResponse
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        if ($user->role !== 'supplier') {
-            return response()->json(['error' => 'Only supplier accounts can view supplier listings'], 403);
+            if ($user->role !== 'supplier') {
+                return response()->json(['error' => 'Only supplier accounts can view supplier listings'], 403);
+            }
+
+            $listings = SupplierInventoryItem::where('supplier_id', $user->id)
+                ->orderByDesc('created_at')
+                ->get();
+
+            return response()->json([
+                'data' => $listings,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading supplier listings:', [
+                'user_id' => $request->user()?->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to load supplier listings',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $listings = SupplierInventoryItem::where('supplier_id', $user->id)
-            ->orderByDesc('created_at')
-            ->get();
-
-        return response()->json([
-            'data' => $listings,
-        ]);
     }
 
     public function createSupplierListing(Request $request): JsonResponse
@@ -358,23 +372,36 @@ class SupplierWorkflowController extends Controller
 
     public function supplierOrders(Request $request): JsonResponse
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        if ($user->role !== 'supplier') {
-            return response()->json(['error' => 'Only supplier accounts can view supplier orders'], 403);
+            if ($user->role !== 'supplier') {
+                return response()->json(['error' => 'Only supplier accounts can view supplier orders'], 403);
+            }
+
+            $orders = SupplyOrder::with([
+                'karenderia:id,business_name,name',
+                'items.supplierItem:id,item_name,unit',
+            ])
+                ->where('supplier_id', $user->id)
+                ->orderByDesc('created_at')
+                ->get();
+
+            return response()->json([
+                'data' => $orders,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading supplier orders:', [
+                'user_id' => $request->user()?->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to load supplier orders',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $orders = SupplyOrder::with([
-            'karenderia:id,business_name,name',
-            'items.supplierItem:id,item_name,unit',
-        ])
-            ->where('supplier_id', $user->id)
-            ->orderByDesc('created_at')
-            ->get();
-
-        return response()->json([
-            'data' => $orders,
-        ]);
     }
 
     public function updateOrderStatus(Request $request, int $orderId): JsonResponse

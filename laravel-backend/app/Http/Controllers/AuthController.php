@@ -81,11 +81,7 @@ class AuthController extends Controller
             'business_email' => 'nullable|email|max:255',
             'opening_time' => 'nullable|string',
             'closing_time' => 'nullable|string',
-            'operating_days' => 'nullable|array',
-            'delivery_fee' => 'nullable|numeric|min:0',
-            'delivery_time_minutes' => 'nullable|integer|min:0',
-            'accepts_cash' => 'boolean',
-            'accepts_online_payment' => 'boolean'
+            'business_permit' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120'
         ]);
 
         if ($validator->fails()) {
@@ -104,6 +100,14 @@ class AuthController extends Controller
                 'verified' => false
             ]);
 
+            // Handle business permit file upload
+            $businessPermitPath = null;
+            if ($request->hasFile('business_permit')) {
+                $file = $request->file('business_permit');
+                $filename = time() . '_' . str_replace(' ', '_', $request->business_name) . '.' . $file->getClientOriginalExtension();
+                $businessPermitPath = $file->storeAs('business-permits', $filename, 'public');
+            }
+
             $karenderia = $user->karenderia()->create([
                 'name' => $request->business_name,
                 'business_name' => $request->business_name,
@@ -117,11 +121,7 @@ class AuthController extends Controller
                 'business_email' => $request->business_email,
                 'opening_time' => $request->opening_time ?? '09:00',
                 'closing_time' => $request->closing_time ?? '21:00',
-                'operating_days' => json_encode($request->operating_days ?? []),
-                'delivery_fee' => $request->delivery_fee ?? 0,
-                'delivery_time_minutes' => $request->delivery_time_minutes ?? 30,
-                'accepts_cash' => $request->accepts_cash ?? true,
-                'accepts_online_payment' => $request->accepts_online_payment ?? false,
+                'business_permit' => $businessPermitPath,
                 'status' => 'pending',
                 'approved_at' => null,
                 'approved_by' => null
@@ -129,7 +129,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Karenderia registration submitted successfully! Your application is now pending admin approval. Please wait for approval before attempting to login.',
+                'message' => 'Karenderia registration submitted successfully! Your business permit has been received. Your application is now pending admin approval. Please wait for approval before attempting to login.',
                 'status' => 'pending_approval',
                 'user' => [
                     'id' => $user->id,
@@ -147,6 +147,85 @@ class AuthController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Register a new supplier
+     */
+    public function registerSupplier(Request $request): JsonResponse
+    {
+        // Log the incoming request for debugging
+        Log::info('Supplier registration request:', [
+            'data' => $request->all(),
+            'ip' => $request->ip()
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string|max:255|min:3',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
+            'confirmPassword' => 'required|string|min:6|same:password',
+            'phoneNumber' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255'
+        ], [
+            'username.required' => 'Username is required',
+            'username.min' => 'Username must be at least 3 characters',
+            'email.required' => 'Email is required',
+            'email.email' => 'Email must be valid',
+            'email.unique' => 'This email is already registered',
+            'password.required' => 'Password is required',
+            'password.min' => 'Password must be at least 6 characters',
+            'confirmPassword.required' => 'Confirm password is required',
+            'confirmPassword.min' => 'Confirm password must be at least 6 characters',
+            'confirmPassword.same' => 'Passwords do not match'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Supplier registration validation failed:', $validator->errors()->toArray());
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::create([
+                'name' => $request->username,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone_number' => $request->phoneNumber,
+                'address' => $request->address,
+                'role' => 'supplier',
+                'verified' => false,
+                'application_status' => 'pending'
+            ]);
+
+            Log::info('Supplier registered successfully:', ['user_id' => $user->id, 'email' => $user->email]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier registration submitted successfully! Your application is pending admin approval.',
+                'status' => 'pending_approval',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role
+                ],
+                'next_step' => 'Please wait for admin approval. You will receive an email once your application is reviewed.'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Supplier registration error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'message' => 'Registration failed',
                 'error' => $e->getMessage()
@@ -202,7 +281,7 @@ class AuthController extends Controller
                 ], 403);
             }
             
-            if (false && $karenderia->status === 'pending') {
+            if ($karenderia->status === 'pending') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your karenderia application is still pending admin approval. Please wait for approval before logging in.',
@@ -215,7 +294,7 @@ class AuthController extends Controller
                 ], 403);
             }
             
-            if (false && $karenderia->status === 'rejected') {
+            if ($karenderia->status === 'rejected') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your karenderia application was rejected. Reason: ' . ($karenderia->rejection_reason ?? 'Not specified'),

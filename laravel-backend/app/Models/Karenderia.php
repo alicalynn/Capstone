@@ -70,6 +70,11 @@ class Karenderia extends Model
         return $this->hasMany(Inventory::class);
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function dailyMenus(): HasMany
     {
         return $this->hasMany(DailyMenu::class);
