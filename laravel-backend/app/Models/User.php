@@ -95,4 +95,12 @@ class User extends Authenticatable
     {
         return $this->hasOne(Karenderia::class, 'owner_id');
     }
+
+    /**
+     * Get the user's orders (if they're a customer)
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'user_id');
+    }
 }

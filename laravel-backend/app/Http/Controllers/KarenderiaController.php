@@ -15,7 +15,7 @@ class KarenderiaController extends Controller
     {
         try {
             // Only return approved karenderias for customers
-            $karenderias = \App\Models\Karenderia::where('status', 'approved')
+            $karenderias = \App\Models\Karenderia::whereIn('status', ['approved', 'active'])
                 ->with(['owner:id,name,email'])
                 ->get()
                 ->map(function ($karenderia) {
@@ -139,7 +139,7 @@ class KarenderiaController extends Controller
             // Fetch the actual karenderia from database
             $karenderia = \App\Models\Karenderia::with(['owner:id,name,email'])
                 ->where('id', $id)
-                ->where('status', 'approved') // Only show approved karenderias
+                ->whereIn('status', ['approved', 'active']) // Only show approved or active karenderias
                 ->first();
 
             if (!$karenderia) {
@@ -554,7 +554,7 @@ class KarenderiaController extends Controller
             }
 
             // Get all approved karenderias
-            $karenderias = \App\Models\Karenderia::where('status', 'approved')
+            $karenderias = \App\Models\Karenderia::whereIn('status', ['approved', 'active'])
                 ->with(['owner:id,name,email'])
                 ->get()
                 ->map(function ($karenderia) use ($latitude, $longitude) {

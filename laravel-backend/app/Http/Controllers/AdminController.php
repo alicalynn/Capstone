@@ -10,6 +10,7 @@ use App\Models\Inventory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -18,7 +19,9 @@ class AdminController extends Controller
     {
         $this->middleware('auth:sanctum');
         $this->middleware(function ($request, $next) {
-            if (auth()->user()->role !== 'admin') {
+            $user = Auth::user();
+            
+            if (!$user || $user->role !== 'admin') {
                 return response()->json(['message' => 'Access denied. Admin privileges required.'], 403);
             }
             return $next($request);
@@ -296,14 +299,20 @@ class AdminController extends Controller
             if (in_array($request->status, ['approved', 'active'], true)) {
                 $karenderia->owner->application_status = 'approved';
                 $karenderia->owner->verified = true;
+                // IMPORTANT: Ensure role remains karenderia_owner after approval
+                $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
             } elseif ($request->status === 'pending') {
                 $karenderia->owner->application_status = 'pending';
                 $karenderia->owner->verified = false;
+                // Ensure role is karenderia_owner for pending status
+                $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
             } elseif ($request->status === 'rejected') {
                 $karenderia->owner->application_status = 'rejected';
                 $karenderia->owner->verified = false;
+                // Ensure role is karenderia_owner even when rejected
+                $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
             }
         }
@@ -748,9 +757,10 @@ class AdminController extends Controller
         ]);
 
         $user = User::findOrFail($userId);
+        $currentUser = Auth::user();
         
         // Prevent changing admin role unless current user is admin
-        if ($user->role === 'admin' && auth()->user()->role !== 'admin') {
+        if ($user->role === 'admin' && (!$currentUser || $currentUser->role !== 'admin')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cannot modify admin user role'

@@ -94,7 +94,8 @@ class AuthController extends Controller
             'delivery_time_minutes' => 'nullable|integer|min:0',
             'accepts_cash' => 'boolean',
             'accepts_online_payment' => 'boolean',
-            'business_permit_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120'
+                'business_permit' => 'required_without:business_permit_file|file|mimes:pdf,jpg,jpeg,png|max:5120',
+                'business_permit_file' => 'required_without:business_permit|file|mimes:pdf,jpg,jpeg,png|max:5120'
         ]);
 
         if ($validator->fails()) {
@@ -105,7 +106,17 @@ class AuthController extends Controller
         }
 
         try {
-            $businessPermitPath = $request->file('business_permit_file')->store('business-permits', 'public');
+            $businessPermitPath = null;
+
+            if ($request->hasFile('business_permit_file')) {
+                $file = $request->file('business_permit_file');
+                $filename = time() . '_' . str_replace(' ', '_', $request->business_name) . '.' . $file->getClientOriginalExtension();
+                $businessPermitPath = $file->storeAs('business-permits', $filename, 'public');
+            } elseif ($request->hasFile('business_permit')) {
+                $file = $request->file('business_permit');
+                $filename = time() . '_' . str_replace(' ', '_', $request->business_name) . '.' . $file->getClientOriginalExtension();
+                $businessPermitPath = $file->storeAs('business-permits', $filename, 'public');
+            }
 
             $user = User::create([
                 'name' => $request->name,
@@ -141,7 +152,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Karenderia registration submitted successfully! Your application is now pending admin approval. Please wait for approval before attempting to login.',
+                'message' => 'Karenderia registration submitted successfully! Your business permit has been received. Your application is now pending admin approval. Please wait for approval before attempting to login.',
                 'status' => 'pending_approval',
                 'user' => [
                     'id' => $user->id,
@@ -168,6 +179,84 @@ class AuthController extends Controller
     }
 
     /**
+     * Register a new supplier
+     */
+    public function registerSupplier(Request $request): JsonResponse
+    {
+        Log::info('Supplier registration request:', [
+            'data' => $request->all(),
+            'ip' => $request->ip()
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string|max:255|min:3',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
+            'confirmPassword' => 'required|string|min:6|same:password',
+            'phoneNumber' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255'
+        ], [
+            'username.required' => 'Username is required',
+            'username.min' => 'Username must be at least 3 characters',
+            'email.required' => 'Email is required',
+            'email.email' => 'Email must be valid',
+            'email.unique' => 'This email is already registered',
+            'password.required' => 'Password is required',
+            'password.min' => 'Password must be at least 6 characters',
+            'confirmPassword.required' => 'Confirm password is required',
+            'confirmPassword.min' => 'Confirm password must be at least 6 characters',
+            'confirmPassword.same' => 'Passwords do not match'
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning('Supplier registration validation failed:', $validator->errors()->toArray());
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::create([
+                'name' => $request->username,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone_number' => $request->phoneNumber,
+                'address' => $request->address,
+                'role' => 'supplier',
+                'verified' => false,
+                'application_status' => 'pending'
+            ]);
+
+            Log::info('Supplier registered successfully:', ['user_id' => $user->id, 'email' => $user->email]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier registration submitted successfully! Your application is pending admin approval.',
+                'status' => 'pending_approval',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role
+                ],
+                'next_step' => 'Please wait for admin approval. You will receive an email once your application is reviewed.'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Supplier registration error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Registration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Reapply as karenderia owner with updated permit
      */
     public function reapplyOwner(Request $request): JsonResponse
@@ -185,7 +274,6 @@ class AuthController extends Controller
         }
 
         try {
-            // Find user by email
             $user = User::where('email', $request->email)
                 ->where('role', 'karenderia_owner')
                 ->first();
@@ -197,7 +285,6 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            // Get the karenderia
             $karenderia = $user->karenderia;
 
             if (!$karenderia) {
@@ -206,7 +293,6 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            // Only allow reapplication if currently rejected
             if ($karenderia->status !== 'rejected') {
                 return response()->json([
                     'message' => 'You can only reapply if your application was previously rejected',
@@ -214,10 +300,8 @@ class AuthController extends Controller
                 ], 422);
             }
 
-            // Store new business permit
             $businessPermitPath = $request->file('business_permit_file')->store('business-permits', 'public');
 
-            // Update karenderia with new permit and reset status
             $karenderia->update([
                 'business_permit' => $businessPermitPath,
                 'status' => 'pending',
