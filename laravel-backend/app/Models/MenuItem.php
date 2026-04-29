@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class MenuItem extends Model
 {
@@ -55,6 +56,11 @@ class MenuItem extends Model
     public function dailyMenus(): HasMany
     {
         return $this->hasMany(DailyMenu::class);
+    }
+
+    public function ingredients(): HasMany
+    {
+        return $this->hasMany(MenuItemIngredient::class);
     }
 
     // Scope for available items
