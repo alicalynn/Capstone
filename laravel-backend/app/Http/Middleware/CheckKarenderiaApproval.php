@@ -56,11 +56,11 @@ class CheckKarenderiaApproval
                 ], 403);
             }
             
-            // Only approved karenderia owners can proceed
-            if ($karenderia->status !== 'approved') {
+            // Approved and active karenderias can access protected owner features.
+            if (!in_array($karenderia->status, ['approved', 'active'], true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Karenderia must be approved to access this feature',
+                    'message' => 'Karenderia must be approved or active to access this feature',
                     'status' => 'not_approved'
                 ], 403);
             }
