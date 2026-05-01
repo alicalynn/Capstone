@@ -7,7 +7,7 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header py-2">
+            <div class="card-header header-gold py-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <h6 class="card-title mb-0">
                         <i class="fas fa-users me-2"></i>All Users
@@ -19,13 +19,14 @@
                 @if($users->count() > 0)
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0">
-                            <thead class="table-light">
-                                <tr>
+                            <thead>
+                                <tr style="background-color: #f8d365; color: #333; font-weight: 700;">
                                     <th class="ps-3">User</th>
                                     <th>Role</th>
                                     <th>Verified</th>
                                     <th>Registered</th>
-                                    <th class="pe-3">Status</th>
+                                    <th>Status</th>
+                                    <th class="pe-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -37,8 +38,8 @@
                                                 <i class="fas fa-user"></i>
                                             </div>
                                             <div>
-                                                <div class="fw-semibold">{{ $user->name }}</div>
-                                                <small class="text-muted">{{ $user->email }}</small>
+                                                <div class="fw-bold user-name">{{ $user->name }}</div>
+                                                <small class="user-email">{{ $user->email }}</small>
                                             </div>
                                         </div>
                                     </td>
@@ -99,8 +100,8 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <div>{{ $user->created_at->format('M d, Y') }}</div>
-                                        <small class="text-muted">{{ $user->created_at->diffForHumans() }}</small>
+                                        <div class="registered-date">{{ $user->created_at->format('M d, Y') }}</div>
+                                        <small class="registered-time">{{ $user->created_at->diffForHumans() }}</small>
                                     </td>
                                     <td class="pe-3">
                                         @if($user->role === 'karenderia_owner')
@@ -129,6 +130,18 @@
                                         @else
                                             <span class="badge bg-success">Active</span>
                                         @endif
+                                    </td>
+                                    <td class="pe-3">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ route('admin.edit-user', $user->id) }}" class="btn btn-outline-primary" title="Edit user">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            @if($user->karenderia)
+                                            <a href="{{ route('admin.review-application', $user->karenderia->id) }}" class="btn btn-outline-info" title="View application">
+                                                <i class="fas fa-file-alt"></i>
+                                            </a>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                                 @endforeach
@@ -169,19 +182,59 @@
 }
 
 .table-sm td {
-    padding: 0.5rem;
+    padding: 0.75rem 0.5rem;
     vertical-align: middle;
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.table-sm tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.table-sm tbody tr:hover {
+    background-color: #f3f4f6;
 }
 
 .table-sm th {
-    padding: 0.5rem;
-    font-weight: 600;
+    padding: 0.75rem 0.5rem;
+    font-weight: 700;
     font-size: 0.875rem;
+}
+
+.user-name {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.95rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.user-email {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.registered-date {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.95rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.registered-time {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
 }
 
 .badge {
     font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
+    padding: 0.4rem 0.6rem;
+    font-weight: 600;
 }
 
 .fw-semibold {

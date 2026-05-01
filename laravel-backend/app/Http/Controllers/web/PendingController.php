@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Karenderia;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class PendingController extends Controller
 {
@@ -107,6 +108,90 @@ class PendingController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to reject user. Please try again.');
+        }
+    }
+
+    /**
+     * Show detailed review page for a karenderia application
+     */
+    public function review($id)
+    {
+        $karenderia = Karenderia::with('owner')->findOrFail($id);
+        $businessPermitUrl = null;
+
+        if ($karenderia->business_permit) {
+            $filePath = 'storage/' . $karenderia->business_permit;
+            $fullPath = public_path($filePath);
+            
+            // Only set URL if file actually exists
+            if (file_exists($fullPath)) {
+                $businessPermitUrl = asset($filePath);
+            }
+        }
+
+        return view('admin.review-application', compact('karenderia', 'businessPermitUrl'));
+    }
+
+    /**
+     * Approve karenderia with optional admin notes
+     */
+    public function approveWithNotes(Request $request, $id)
+    {
+        $request->validate([
+            'admin_notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            $karenderia = Karenderia::findOrFail($id);
+            $karenderia->status = 'approved';
+            $karenderia->approved_at = now();
+            $karenderia->approved_by = Auth::id();
+            $karenderia->admin_notes = $request->admin_notes;
+            $karenderia->save();
+
+            if ($karenderia->owner) {
+                $karenderia->owner->application_status = 'approved';
+                $karenderia->owner->verified = true;
+                $karenderia->owner->save();
+            }
+
+            return redirect()->route('admin.pending')
+                ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully!");
+        } catch (\Exception $e) {
+            return redirect()->route('admin.review-application', $id)
+                ->with('error', 'Failed to approve karenderia. Please try again.');
+        }
+    }
+
+    /**
+     * Reject karenderia with required rejection reason and optional notes
+     */
+    public function rejectWithNotes(Request $request, $id)
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|max:500',
+            'admin_notes' => 'nullable|string|max:1000'
+        ]);
+
+        try {
+            $karenderia = Karenderia::findOrFail($id);
+            $karenderia->status = 'rejected';
+            $karenderia->rejection_reason = $request->rejection_reason;
+            $karenderia->rejected_at = now();
+            $karenderia->admin_notes = $request->admin_notes;
+            $karenderia->save();
+
+            if ($karenderia->owner) {
+                $karenderia->owner->application_status = 'rejected';
+                $karenderia->owner->verified = false;
+                $karenderia->owner->save();
+            }
+
+            return redirect()->route('admin.pending')
+                ->with('success', "Karenderia '{$karenderia->name}' has been rejected.");
+        } catch (\Exception $e) {
+            return redirect()->route('admin.review-application', $id)
+                ->with('error', 'Failed to reject karenderia. Please try again.');
         }
     }
 

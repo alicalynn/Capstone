@@ -3,11 +3,15 @@
 @section('title', 'Pending Approvals')
 @section('page-title', 'Pending Approvals')
 
+@php
+use Illuminate\Support\Str;
+@endphp
+
 @section('content')
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header header-warning">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-clock me-2"></i>Pending Applications
@@ -64,19 +68,24 @@
                                     </td>
                                     <td>
                                         <div class="btn-group-vertical btn-group-sm" role="group">
-                                            <!-- Approve Button -->
-                                                <button type="button" class="btn btn-outline-success mb-1" 
-                                                    data-id="{{ $karenderia->id }}"
-                                                    data-name="{{ e($karenderia->name) }}"
-                                                    onclick="approveKarenderia(this)">
+                                            <!-- Review Button -->
+                                            <a href="{{ route('admin.review-application', $karenderia->id) }}" class="btn btn-outline-primary mb-1">
+                                                <i class="fas fa-eye me-1"></i>Review
+                                            </a>
+                                            
+                                            <!-- Quick Approve Button -->
+                                            <button type="button" class="btn btn-outline-success mb-1" 
+                                                data-id="{{ $karenderia->id }}"
+                                                data-name="{{ e($karenderia->name) }}"
+                                                onclick="approveKarenderia(this)">
                                                 <i class="fas fa-check me-1"></i>Approve
                                             </button>
                                             
-                                            <!-- Reject Button -->
-                                                <button type="button" class="btn btn-outline-danger" 
-                                                    data-id="{{ $karenderia->id }}"
-                                                    data-name="{{ e($karenderia->name) }}"
-                                                    onclick="showRejectModal(this)">
+                                            <!-- Quick Reject Button -->
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                data-id="{{ $karenderia->id }}"
+                                                data-name="{{ e($karenderia->name) }}"
+                                                onclick="showRejectModal(this)">
                                                 <i class="fas fa-times me-1"></i>Reject
                                             </button>
                                         </div>
@@ -95,9 +104,13 @@
 
                     @if($pendingSuppliers->count() > 0)
                         <div class="mt-5">
-                            <h5 class="card-title mb-3">
-                                <i class="fas fa-truck me-2"></i>Pending Supplier Applications
-                            </h5>
+                            <div class="card mb-3">
+                                <div class="card-header header-info">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-truck me-2"></i>Pending Supplier Applications
+                                    </h5>
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
