@@ -59,9 +59,7 @@ class PendingController extends Controller
         $request->validate([
             'rejection_reason' => 'required|string|max:500'
         ]);
-        use App\Mail\RejectNotification;
-        use Illuminate\Support\Facades\Mail;
-        use Illuminate\Support\Facades\Auth;
+        try {
             $karenderia = Karenderia::findOrFail($id);
             $karenderia->status = 'rejected';
             $karenderia->rejection_reason = $request->rejection_reason;
@@ -225,7 +223,6 @@ class PendingController extends Controller
             return redirect()->route('admin.review-application', $id)
                 ->with('error', 'Failed to reject karenderia. Please try again.');
         }
-    }
     }
 
     public function showPendingDashboard()
