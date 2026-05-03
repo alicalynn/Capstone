@@ -465,19 +465,7 @@ class AuthController extends Controller
                 ], 403);
             }
             
-            if (!$user->verified || $karenderia->status === 'pending') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You cannot login yet because your owner account is still pending admin verification.',
-                    'status' => 'pending_approval',
-                    'application_details' => [
-                        'business_name' => $karenderia->business_name,
-                        'submitted_at' => $karenderia->created_at->format('M d, Y'),
-                        'status' => 'pending'
-                    ]
-                ], 403);
-            }
-            
+            // Check for rejected status FIRST so reapply button shows
             if ($karenderia->status === 'rejected') {
                 return response()->json([
                     'success' => false,
@@ -488,6 +476,19 @@ class AuthController extends Controller
                         'rejected_at' => $karenderia->rejected_at ? $karenderia->rejected_at->format('M d, Y') : null,
                         'rejection_reason' => $karenderia->rejection_reason,
                         'status' => 'rejected'
+                    ]
+                ], 403);
+            }
+            
+            if (!$user->verified || $karenderia->status === 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot login yet because your owner account is still pending admin verification.',
+                    'status' => 'pending_approval',
+                    'application_details' => [
+                        'business_name' => $karenderia->business_name,
+                        'submitted_at' => $karenderia->created_at->format('M d, Y'),
+                        'status' => 'pending'
                     ]
                 ], 403);
             }

@@ -1,0 +1,7 @@
+$email = file_get_contents('owner_test_email.txt');
+$email = trim($email);
+$user = App\Models\User::where('email', $email)->first();
+if ($user && $user->karenderia) {
+  $user->karenderia->update(['status' => 'rejected', 'rejection_reason' => 'Test rejection for reapply flow', 'rejected_at' => now()]);
+  echo "✅ Owner rejected: $email\n";
+}
