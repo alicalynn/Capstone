@@ -1,4 +1,0 @@
-
-$karenderia = App\Models\Karenderia::where('user_id', 59)->first();
-echo 'Status: ' . (\ ? \->status : 'not found');
-
