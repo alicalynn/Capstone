@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -64,7 +65,7 @@ class OrderController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Failed to fetch orders: ' . $e->getMessage());
+            Log::error('Failed to fetch orders: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -103,6 +104,48 @@ class OrderController extends Controller
             // Get the authenticated user (if any) - allow guest orders
             $user = $request->user();
             
+            // ===== INVENTORY VALIDATION =====
+            // Check if there's enough inventory for all items before creating order
+            $inventoryService = app(\App\Services\InventoryService::class);
+            $inventoryDeductions = [];
+            
+            foreach ($validatedData['items'] as $item) {
+                $menuItem = \App\Models\MenuItem::where('id', $item['menuItemId'])
+                    ->orWhere('name', $item['menuItemName'])
+                    ->with('ingredients')
+                    ->first();
+                
+                if ($menuItem && $menuItem->ingredients()->exists()) {
+                    // Get all required ingredients for this menu item
+                    foreach ($menuItem->ingredients as $ingredient) {
+                        $totalNeeded = $ingredient->quantity_needed * $item['quantity'];
+                        
+                        // Check if sufficient inventory exists
+                        if (!$inventoryService->checkStockAvailability($ingredient->inventory_id, $totalNeeded)) {
+                            $inventory = Inventory::find($ingredient->inventory_id);
+                            return response()->json([
+                                'success' => false,
+                                'message' => "Insufficient inventory for order",
+                                'details' => [
+                                    'item' => $item['menuItemName'],
+                                    'required_ingredient' => $inventory->item_name,
+                                    'needed' => $totalNeeded,
+                                    'available' => $inventory->current_stock,
+                                    'unit' => $inventory->unit
+                                ]
+                            ], 422);
+                        }
+                        
+                        // Store deduction info for later
+                        if (!isset($inventoryDeductions[$ingredient->inventory_id])) {
+                            $inventoryDeductions[$ingredient->inventory_id] = 0;
+                        }
+                        $inventoryDeductions[$ingredient->inventory_id] += $totalNeeded;
+                    }
+                }
+            }
+            
+            // ===== CREATE ORDER =====
             // Create the order
             $order = \App\Models\Order::create([
                 'customer_id' => $user ? $user->id : null,
@@ -157,17 +200,24 @@ class OrderController extends Controller
 
             // Update the order with total cost
             $order->update(['total_cost' => $totalCost]);
+            
+            // ===== DEDUCT INVENTORY =====
+            // Now deduct the inventory for all items
+            foreach ($inventoryDeductions as $inventoryId => $quantity) {
+                $inventoryService->deductStock($inventoryId, $quantity, "Order #" . $order->id);
+            }
 
             // Load the order with relationships
             $order->load(['orderItems', 'karenderia', 'customer']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order created successfully',
+                'message' => 'Order created successfully and inventory deducted',
                 'data' => [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
-                    'order' => $order
+                    'order' => $order,
+                    'inventory_deducted' => count($inventoryDeductions) > 0
                 ]
             ], 201);
 
@@ -178,7 +228,7 @@ class OrderController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Order creation failed: ' . $e->getMessage());
+            Log::error('Order creation failed: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,
@@ -288,7 +338,7 @@ class OrderController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Order status update failed: ' . $e->getMessage());
+            Log::error('Order status update failed: ' . $e->getMessage());
             
             return response()->json([
                 'success' => false,

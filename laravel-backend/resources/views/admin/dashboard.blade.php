@@ -3,6 +3,10 @@
 @section('title', 'Dashboard')
 @section('page-title', 'Admin Dashboard')
 
+@php
+use Illuminate\Support\Str;
+@endphp
+
 @section('content')
 <div class="row mb-4">
     <!-- Statistics Cards -->
@@ -76,7 +80,7 @@
     <!-- Recent Registrations -->
     <div class="col-md-8 mb-4">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header header-info">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-clock me-2"></i>Recent Karenderia Registrations
                 </h5>
@@ -86,7 +90,7 @@
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
-                                <tr>
+                                <tr style="background-color: #4facfe; color: white; font-weight: 700;">
                                     <th>Karenderia Name</th>
                                     <th>Owner</th>
                                     <th>Status</th>
@@ -98,10 +102,10 @@
                                 @foreach($recent_registrations as $karenderia)
                                 <tr>
                                     <td>
-                                        <strong>{{ $karenderia->name }}</strong>
-                                        <br><small class="text-muted">{{ Str::limit($karenderia->description, 50) }}</small>
+                                        <strong class="dashboard-karenderia-name">{{ $karenderia->name }}</strong>
+                                        <br><small class="dashboard-karenderia-description">{{ Str::limit($karenderia->description, 50) }}</small>
                                     </td>
-                                    <td>{{ $karenderia->owner->name ?? 'N/A' }}</td>
+                                    <td class="dashboard-owner-name">{{ $karenderia->owner->name ?? 'N/A' }}</td>
                                     <td>
                                         @if($karenderia->status == 'pending')
                                             <span class="badge bg-warning">Pending</span>
@@ -111,14 +115,14 @@
                                             <span class="badge bg-danger">Rejected</span>
                                         @endif
                                     </td>
-                                    <td>{{ $karenderia->created_at->format('M d, Y') }}</td>
+                                    <td class="dashboard-registration-date">{{ $karenderia->created_at->format('M d, Y') }}</td>
                                     <td>
                                         @if($karenderia->status == 'pending')
                                             <a href="{{ route('admin.pending') }}" class="btn btn-sm btn-outline-primary">
                                                 Review
                                             </a>
                                         @else
-                                            <span class="text-muted">—</span>
+                                            <span class="no-action">—</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -139,7 +143,7 @@
     <!-- Quick Actions -->
     <div class="col-md-4 mb-4">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header header-primary">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-bolt me-2"></i>Quick Actions
                 </h5>
@@ -201,6 +205,36 @@
 @endsection
 
 @section('scripts')
+<style>
+.dashboard-karenderia-name {
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 0.95rem;
+    display: block;
+}
+
+.dashboard-karenderia-description {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.dashboard-owner-name {
+    font-weight: 600;
+    color: #111827;
+}
+
+.dashboard-registration-date {
+    font-weight: 600;
+    color: #111827;
+}
+
+.no-action {
+    color: #9ca3af;
+    font-weight: 500;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.distribution-progress').forEach(function (bar) {

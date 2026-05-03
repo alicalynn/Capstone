@@ -11,7 +11,7 @@
         :root {
             color-scheme: light dark;
             --admin-text: #1f2937;
-            --admin-muted: #4b5563;
+            --admin-muted: #6b7280;
             --admin-bg: #f8f9fa;
             --admin-card-bg: #ffffff;
             --admin-border: #dee2e6;
@@ -33,6 +33,7 @@
             color: var(--admin-text);
             font-weight: 500;
             background-color: var(--admin-bg);
+            opacity: 1;
         }
         .sidebar {
             min-height: 100vh;
@@ -68,9 +69,51 @@
             border-bottom: 2px solid var(--admin-border);
             font-weight: 700;
         }
+        
+        /* Colored Headers */
+        .card-header.header-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-bottom: none;
+            color: white !important;
+        }
+        
+        .card-header.header-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-bottom: none;
+            color: white !important;
+        }
+        
+        .card-header.header-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-bottom: none;
+            color: white !important;
+        }
+        
+        .card-header.header-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-bottom: none;
+            color: white !important;
+        }
+        
+        .card-header.header-gold {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            border-bottom: none;
+            color: #333 !important;
+        }
+        
+        .card-header.header-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-bottom: none;
+            color: white !important;
+        }
+        
         .card-header h5, .card-header h6 {
             font-weight: 800;
-            color: var(--admin-text) !important;
+            color: inherit !important;
+        }
+        
+        .card-header .card-title {
+            color: inherit !important;
         }
         .stat-card {
             border-left: 4px solid;
@@ -188,7 +231,7 @@
                         <div class="navbar-nav ms-auto">
                             <span class="nav-item nav-link">
                                 <i class="fas fa-user-circle me-1"></i>
-                                {{ Auth::user()->name }}
+                                {{ auth()->user()->name }}
                             </span>
                         </div>
                     </div>

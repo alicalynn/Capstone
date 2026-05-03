@@ -3,16 +3,20 @@
 @section('title', 'Karenderias Management')
 @section('page-title', 'Karenderias Management')
 
+@php
+use Illuminate\Support\Str;
+@endphp
+
 @section('content')
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header header-success">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-store me-2"></i>All Karenderias
                     </h5>
-                    <span class="badge bg-primary fs-6">{{ $karenderias->total() }} karenderias</span>
+                    <span class="badge bg-light text-dark fs-6">{{ $karenderias->total() }} karenderias</span>
                 </div>
             </div>
             <div class="card-body">
@@ -20,7 +24,7 @@
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
-                                <tr>
+                                <tr style="background-color: #11998e; color: white; font-weight: 700;">
                                     <th>Karenderia Details</th>
                                     <th>Owner</th>
                                     <th>Contact Information</th>
@@ -33,12 +37,12 @@
                                 <tr>
                                     <td>
                                         <div>
-                                            <strong class="text-primary">{{ $karenderia->name }}</strong>
+                                            <strong class="karenderia-name">{{ $karenderia->name }}</strong>
                                             @if($karenderia->business_name && $karenderia->business_name != $karenderia->name)
-                                                <br><small class="text-muted">Business: {{ $karenderia->business_name }}</small>
+                                                <br><small class="karenderia-business">Business: {{ $karenderia->business_name }}</small>
                                             @endif
-                                            <br><small class="text-muted">{{ Str::limit($karenderia->description, 60) }}</small>
-                                            <br><small class="text-muted">
+                                            <br><small class="karenderia-description">{{ Str::limit($karenderia->description, 60) }}</small>
+                                            <br><small class="karenderia-address">
                                                 <i class="fas fa-map-marker-alt"></i> {{ $karenderia->address }}
                                             </small>
                                         </div>
@@ -46,15 +50,15 @@
                                     <td>
                                         @if($karenderia->owner)
                                             <div>
-                                                <strong>{{ $karenderia->owner->name }}</strong>
-                                                <br><small class="text-muted">{{ $karenderia->owner->email }}</small>
+                                                <strong class="owner-name">{{ $karenderia->owner->name }}</strong>
+                                                <br><small class="owner-email">{{ $karenderia->owner->email }}</small>
                                             </div>
                                         @else
-                                            <span class="text-muted">Owner not found</span>
+                                            <span class="owner-not-found">Owner not found</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <div>
+                                        <div class="contact-info">
                                             @if($karenderia->phone)
                                                 <i class="fas fa-phone"></i> {{ $karenderia->phone }}<br>
                                             @endif
@@ -62,7 +66,7 @@
                                                 <i class="fas fa-envelope"></i> {{ $karenderia->email }}<br>
                                             @endif
                                             @if($karenderia->operating_hours)
-                                                <small class="text-muted">
+                                                <small class="operating-hours">
                                                     <i class="fas fa-clock"></i> 
                                                     {{ $karenderia->opening_time ? $karenderia->opening_time->format('H:i') : 'N/A' }} - 
                                                     {{ $karenderia->closing_time ? $karenderia->closing_time->format('H:i') : 'N/A' }}
@@ -76,7 +80,7 @@
                                                 <i class="fas fa-check-circle me-1"></i>Approved
                                             </span>
                                             @if($karenderia->approved_at)
-                                                <br><small class="text-muted">{{ $karenderia->approved_at->format('M d, Y') }}</small>
+                                                <br><small class="status-date">{{ $karenderia->approved_at->format('M d, Y') }}</small>
                                             @endif
                                         @elseif($karenderia->status === 'pending')
                                             <span class="badge bg-warning">
@@ -87,16 +91,16 @@
                                                 <i class="fas fa-times-circle me-1"></i>Rejected
                                             </span>
                                             @if($karenderia->rejected_at)
-                                                <br><small class="text-muted">{{ $karenderia->rejected_at->format('M d, Y') }}</small>
+                                                <br><small class="status-date">{{ $karenderia->rejected_at->format('M d, Y') }}</small>
                                             @endif
                                             @if($karenderia->rejection_reason)
-                                                <br><small class="text-danger">{{ Str::limit($karenderia->rejection_reason, 30) }}</small>
+                                                <br><small class="rejection-reason">{{ Str::limit($karenderia->rejection_reason, 30) }}</small>
                                             @endif
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="badge bg-light text-dark">{{ $karenderia->created_at->format('M d, Y') }}</span>
-                                        <br><small class="text-muted">{{ $karenderia->created_at->diffForHumans() }}</small>
+                                        <div class="registration-date">{{ $karenderia->created_at->format('M d, Y') }}</div>
+                                        <small class="registration-time">{{ $karenderia->created_at->diffForHumans() }}</small>
                                     </td>
                                 </tr>
                                 @endforeach
@@ -119,4 +123,103 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<style>
+.table.table-hover {
+    font-weight: 500;
+}
+
+.table.table-hover td {
+    color: #1f2937;
+    font-weight: 500;
+    padding: 0.75rem;
+    vertical-align: top;
+}
+
+.table.table-hover tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.table.table-hover tbody tr:hover {
+    background-color: #f3f4f6;
+}
+
+.table.table-hover th {
+    font-weight: 700;
+    padding: 0.75rem;
+}
+
+.karenderia-name {
+    font-weight: 700;
+    color: #1f6b59;
+    font-size: 0.95rem;
+    display: block;
+}
+
+.karenderia-business,
+.karenderia-description,
+.karenderia-address {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.owner-name {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.95rem;
+    display: block;
+}
+
+.owner-email {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.owner-not-found {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.contact-info {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.operating-hours {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.status-date {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+
+.rejection-reason {
+    color: #dc2626;
+    font-weight: 600;
+    display: block;
+}
+
+.registration-date {
+    font-weight: 700;
+    color: #111827;
+    font-size: 0.95rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.registration-time {
+    color: #6b7280;
+    font-weight: 500;
+    display: block;
+}
+</style>
 @endsection

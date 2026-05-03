@@ -9,6 +9,7 @@ use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\MenuCategoryController;
+use App\Http\Controllers\MenuItemIngredientController;
 use App\Http\Controllers\IngredientController;
 use App\Models\User;
 
@@ -146,6 +147,15 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-items')
     Route::get('/{id}', [MenuItemController::class, 'show']);
     Route::put('/{id}', [MenuItemController::class, 'update']);
     Route::delete('/{id}', [MenuItemController::class, 'destroy']);
+});
+
+// Menu Item Ingredients routes (for specifying what ingredients each menu item needs)
+Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-item-ingredients')->group(function () {
+    Route::get('/available-inventory', [MenuItemIngredientController::class, 'availableInventory']); // Get available inventory to add as ingredients
+    Route::get('/{menuItemId}', [MenuItemIngredientController::class, 'index']); // Get ingredients for a menu item
+    Route::post('/', [MenuItemIngredientController::class, 'store']); // Add ingredient to menu item
+    Route::put('/{id}', [MenuItemIngredientController::class, 'update']); // Update ingredient quantity
+    Route::delete('/{id}', [MenuItemIngredientController::class, 'destroy']); // Remove ingredient from menu item
 });
 
 // Daily Menu routes (Menu of the Day)
