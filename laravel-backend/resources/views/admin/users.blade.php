@@ -96,6 +96,7 @@
                                     <th class="ps-3">User</th>
                                     <th>Role</th>
                                     <th>Verified</th>
+                                    <th>Business Permit</th>
                                     <th>Registered</th>
                                     <th class="pe-3">Status</th>
                                 </tr>
@@ -168,6 +169,39 @@
                                                     <i class="fas fa-clock"></i> Pending
                                                 </span>
                                             @endif
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @php
+                                            $permitPreviewUrl = null;
+                                            $permitDownloadUrl = null;
+                                            $permitLabel = $user->name;
+
+                                            if ($user->role === 'supplier' && $user->business_permit) {
+                                                $permitPreviewUrl = url('/business-permits/' . basename($user->business_permit));
+                                                $permitDownloadUrl = $permitPreviewUrl . '?download=1';
+                                            } elseif ($user->role === 'karenderia_owner' && $user->karenderia && $user->karenderia->business_permit) {
+                                                $permitPreviewUrl = route('admin.pending.permit', ['id' => $user->karenderia->id]);
+                                                $permitDownloadUrl = route('admin.pending.permit', ['id' => $user->karenderia->id, 'download' => 1]);
+                                                $permitLabel = $user->karenderia->name ?? $user->name;
+                                            }
+                                        @endphp
+
+                                        @if($permitPreviewUrl)
+                                            <div class="d-grid gap-1">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        data-permit-url="{{ $permitPreviewUrl }}"
+                                                        data-business-name="{{ e($permitLabel) }}"
+                                                        onclick="previewPermit(this)">
+                                                    <i class="fas fa-eye me-1"></i>View Permit
+                                                </button>
+                                                <a href="{{ $permitDownloadUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-download me-1"></i>Download
+                                                </a>
+                                            </div>
+                                        @else
+                                            <span class="badge bg-danger">No Permit</span>
                                         @endif
                                     </td>
                                     <td>
@@ -268,4 +302,46 @@
     background-color: #f8f9fa !important;
 }
 </style>
+
+<!-- Permit Preview Modal -->
+<div class="modal fade" id="userPermitPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-alt text-primary me-2"></i>
+                    Business Permit: <span id="userPermitBusinessName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="height: 75vh;">
+                <iframe id="userPermitPreviewFrame" src="" width="100%" height="100%" style="border: 0; border-radius: 8px;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <a id="userPermitOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                    <i class="fas fa-external-link-alt me-2"></i>Open in New Tab
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewPermit(button) {
+    const url = button.dataset.permitUrl;
+    const businessName = button.dataset.businessName;
+
+    document.getElementById('userPermitBusinessName').textContent = businessName;
+    document.getElementById('userPermitPreviewFrame').src = url;
+    document.getElementById('userPermitOpenNewTab').href = url;
+
+    const modal = new bootstrap.Modal(document.getElementById('userPermitPreviewModal'));
+    modal.show();
+
+    document.getElementById('userPermitPreviewModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('userPermitPreviewFrame').src = '';
+    }, { once: true });
+}
+</script>
 @endsection

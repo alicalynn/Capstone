@@ -194,7 +194,9 @@ class AuthController extends Controller
             'password' => 'required|string|min:6',
             'confirmPassword' => 'required|string|min:6|same:password',
             'phoneNumber' => 'nullable|string|max:20',
-            'address' => 'nullable|string|max:255'
+            'address' => 'nullable|string|max:255',
+            'business_permit_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'business_permit' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120'
         ], [
             'username.required' => 'Username is required',
             'username.min' => 'Username must be at least 3 characters',
@@ -217,6 +219,20 @@ class AuthController extends Controller
         }
 
         try {
+            $businessPermitPath = null;
+
+            if ($request->hasFile('business_permit_file')) {
+                $permitFile = $request->file('business_permit_file');
+                $permitBaseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $request->username ?: $request->email);
+                $permitFileName = time() . '_' . $permitBaseName . '.' . $permitFile->getClientOriginalExtension();
+                $businessPermitPath = $permitFile->storeAs('business-permits', $permitFileName, 'public');
+            } elseif ($request->hasFile('business_permit')) {
+                $permitFile = $request->file('business_permit');
+                $permitBaseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $request->username ?: $request->email);
+                $permitFileName = time() . '_' . $permitBaseName . '.' . $permitFile->getClientOriginalExtension();
+                $businessPermitPath = $permitFile->storeAs('business-permits', $permitFileName, 'public');
+            }
+
             $user = User::create([
                 'name' => $request->username,
                 'email' => $request->email,
@@ -225,7 +241,8 @@ class AuthController extends Controller
                 'address' => $request->address,
                 'role' => 'supplier',
                 'verified' => false,
-                'application_status' => 'pending'
+                'application_status' => 'pending',
+                'business_permit' => $businessPermitPath
             ]);
 
             Log::info('Supplier registered successfully:', ['user_id' => $user->id, 'email' => $user->email]);
@@ -238,7 +255,8 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'email' => $user->email,
                     'name' => $user->name,
-                    'role' => $user->role
+                    'role' => $user->role,
+                    'business_permit_url' => $businessPermitPath ? url('/business-permits/' . basename($businessPermitPath)) : null
                 ],
                 'next_step' => 'Please wait for admin approval. You will receive an email once your application is reviewed.'
             ], 201);
@@ -321,6 +339,72 @@ class AuthController extends Controller
                     'business_name' => $karenderia->business_name,
                     'status' => $karenderia->status,
                     'reapplication_count' => $karenderia->reapplication_count
+                ],
+                'next_step' => 'Wait for admin approval, then login with your credentials'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Reapplication failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reapply as supplier with an updated business permit.
+     */
+    public function reapplySupplier(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email|max:255',
+            'business_permit_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $user = User::where('email', $request->email)
+                ->where('role', 'supplier')
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'No supplier account found with this email',
+                    'errors' => ['email' => ['Supplier account not found']]
+                ], 404);
+            }
+
+            if ($user->application_status !== 'rejected') {
+                return response()->json([
+                    'message' => 'You can only reapply if your application was previously rejected',
+                    'current_status' => $user->application_status
+                ], 422);
+            }
+
+            $businessPermitPath = $request->file('business_permit_file')->store('business-permits', 'public');
+
+            $user->update([
+                'business_permit' => $businessPermitPath,
+                'application_status' => 'pending',
+                'verified' => false
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Your supplier reapplication has been submitted successfully! Your updated permit is now pending admin review.',
+                'status' => 'pending_approval',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                    'business_permit_url' => url('/business-permits/' . basename($businessPermitPath))
                 ],
                 'next_step' => 'Wait for admin approval, then login with your credentials'
             ], 200);

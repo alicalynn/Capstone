@@ -4,6 +4,23 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\web\AdminWebController;
 use App\Http\Controllers\web\PendingController;
 
+// Serve stored permit files directly so preview/download keeps working without a storage symlink.
+Route::get('/business-permits/{filename}', function (Illuminate\Http\Request $request, string $filename) {
+    $permitPath = storage_path('app/public/business-permits/' . $filename);
+
+    if (!file_exists($permitPath)) {
+        abort(404, 'Business permit file not found.');
+    }
+
+    $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
+
+    if ($download) {
+        return response()->download($permitPath, basename($permitPath));
+    }
+
+    return response()->file($permitPath);
+});
+
 // Redirect root URL to admin login
 Route::get('/', function () {
     return redirect('/admin/login');

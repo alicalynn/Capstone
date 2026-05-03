@@ -28,6 +28,7 @@ class User extends Authenticatable
         'phone_number',
         'address',
         'application_status',
+        'business_permit',
         'photo_url',
         'age',
         'height',

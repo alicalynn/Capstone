@@ -71,6 +71,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/register-karenderia-owner', [AuthController::class, 'registerKarenderiaOwner']);
     Route::post('/register-supplier', [AuthController::class, 'registerSupplier']);
     Route::post('/reapply-owner', [AuthController::class, 'reapplyOwner']);
+    Route::post('/reapply-supplier', [AuthController::class, 'reapplySupplier']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);

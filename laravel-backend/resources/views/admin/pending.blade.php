@@ -123,6 +123,7 @@
                                         <tr>
                                             <th>Supplier Details</th>
                                             <th>Contact</th>
+                                            <th>Business Permit</th>
                                             <th>Application Date</th>
                                             <th>Actions</th>
                                         </tr>
@@ -143,6 +144,27 @@
                                                         <i class="fas fa-map-marker-alt"></i> {{ Str::limit($supplier->address, 60) }}
                                                     @endif
                                                 </div>
+                                            </td>
+                                            <td>
+                                                @if($supplier->business_permit)
+                                                    @php
+                                                        $supplierPermitUrl = url('/business-permits/' . basename($supplier->business_permit));
+                                                    @endphp
+                                                    <div class="d-grid gap-1">
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-primary"
+                                                                data-permit-url="{{ $supplierPermitUrl }}"
+                                                                data-business-name="{{ e($supplier->name) }}"
+                                                                onclick="previewPermit(this)">
+                                                            <i class="fas fa-eye me-1"></i>Preview
+                                                        </button>
+                                                        <a href="{{ $supplierPermitUrl }}?download=1" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                                                            <i class="fas fa-download me-1"></i>Download
+                                                        </a>
+                                                    </div>
+                                                @else
+                                                    <span class="badge bg-danger">Missing Permit</span>
+                                                @endif
                                             </td>
                                             <td>
                                                 <span class="badge bg-light text-dark">{{ $supplier->created_at->format('M d, Y') }}</span>
