@@ -49,6 +49,9 @@ Route::post('/emergency-login', function (Request $request) {
 use App\Http\Controllers\DailyMenuController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierWorkflowController;
+use App\Http\Controllers\IngredientRequestController;
+use App\Http\Controllers\SupplierQuoteController;
+use App\Http\Controllers\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -205,6 +208,49 @@ Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
     Route::get('/orders/owner', [SupplierWorkflowController::class, 'ownerOrders']);
     Route::get('/orders/supplier', [SupplierWorkflowController::class, 'supplierOrders']);
     Route::patch('/orders/{orderId}/status', [SupplierWorkflowController::class, 'updateOrderStatus']);
+});
+
+// ==================== INGREDIENT REQUEST SYSTEM ====================
+// Ingredient Requests routes (Owner posts requests, Suppliers respond with quotes)
+Route::middleware(['auth:sanctum'])->prefix('ingredient-requests')->group(function () {
+    // OWNER SIDE: Create and manage ingredient requests
+    Route::middleware('karenderia.approved')->group(function () {
+        Route::post('/', [IngredientRequestController::class, 'store']); // Owner posts ingredient request
+        Route::get('/owner/my-requests', [IngredientRequestController::class, 'ownerIndex']); // Owner view their requests
+        Route::get('/owner/{ingredientRequest}', [IngredientRequestController::class, 'ownerShow']); // Owner view request detail with quotes
+        Route::patch('/{ingredientRequest}/status', [IngredientRequestController::class, 'updateStatus']); // Owner update request status
+    });
+
+    // SUPPLIER SIDE: Browse and quote on requests
+    Route::group(['middleware' => 'supplier.verified'], function () {
+        Route::get('/supplier/available', [IngredientRequestController::class, 'supplierIndex']); // Supplier view available requests
+        Route::get('/supplier/{ingredientRequest}', [IngredientRequestController::class, 'supplierShow']); // Supplier view request detail
+    });
+});
+
+// Supplier Quotes routes
+Route::middleware(['auth:sanctum'])->prefix('supplier-quotes')->group(function () {
+    // SUPPLIER: Submit quotes
+    Route::middleware('supplier.verified')->group(function () {
+        Route::post('/', [SupplierQuoteController::class, 'store']); // Supplier submit quote
+        Route::get('/my-quotes', [SupplierQuoteController::class, 'myQuotes']); // Supplier view their quotes
+    });
+
+    // OWNER: Accept or reject quotes
+    Route::middleware('karenderia.approved')->group(function () {
+        Route::get('/{ingredientRequest}/all', [SupplierQuoteController::class, 'requestQuotes']); // Owner view all quotes for a request
+        Route::patch('/{quote}/accept', [SupplierQuoteController::class, 'accept']); // Owner accept a quote
+        Route::patch('/{quote}/reject', [SupplierQuoteController::class, 'reject']); // Owner reject a quote
+    });
+});
+
+// Messages/Chat routes (for communication between owner and supplier)
+Route::middleware(['auth:sanctum'])->prefix('messages')->group(function () {
+    Route::post('/', [MessageController::class, 'store']); // Send a message
+    Route::get('/conversations', [MessageController::class, 'conversations']); // Get all conversations
+    Route::get('/ingredient-requests/{ingredientRequest}', [MessageController::class, 'getConversation']); // Get conversation for specific request
+    Route::get('/unread', [MessageController::class, 'unreadCount']); // Get unread message count
+    Route::post('/call-request', [MessageController::class, 'requestCall']); // Request a phone call
 });
 
 // Menu Categories (for organizing menu items)

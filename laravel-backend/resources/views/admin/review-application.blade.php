@@ -10,7 +10,7 @@
         <div class="card mb-4">
             <div class="card-header header-info">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
+                    <h5 class="card-title mb-0" style="color: #1f2937; font-weight: 700;">
                         <i class="fas fa-file-alt me-2"></i>Application Details
                     </h5>
                     <span class="badge bg-{{ $karenderia->status === 'pending' ? 'warning' : ($karenderia->status === 'approved' ? 'success' : 'danger') }}">
@@ -22,24 +22,24 @@
                 <!-- Karenderia Information -->
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <h6 class="text-muted text-uppercase fs-7 mb-3">
+                        <h6 class="text-uppercase fs-7 mb-3" style="color: #374151; font-weight: 700;">
                             <i class="fas fa-store me-2"></i>Business Information
                         </h6>
                         <div class="mb-3">
-                            <label class="text-muted small">Business Name</label>
-                            <p class="fw-500">{{ $karenderia->business_name ?? $karenderia->name }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Business Name</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->business_name ?? $karenderia->name }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Karenderia Name</label>
-                            <p class="fw-500">{{ $karenderia->name }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Karenderia Name</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->name }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Description</label>
-                            <p class="fw-500">{{ $karenderia->description ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Description</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->description ?? 'N/A' }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Operating Days</label>
-                            <p class="fw-500">
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Operating Days</label>
+                            <p class="fw-600" style="color: #111827;">
                                 @if($karenderia->operating_days && is_array($karenderia->operating_days))
                                     {{ implode(', ', array_map('ucfirst', $karenderia->operating_days)) }}
                                 @else
@@ -49,24 +49,24 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-muted text-uppercase fs-7 mb-3">
+                        <h6 class="text-uppercase fs-7 mb-3" style="color: #374151; font-weight: 700;">
                             <i class="fas fa-clock me-2"></i>Business Hours
                         </h6>
                         <div class="mb-3">
-                            <label class="text-muted small">Opening Time</label>
-                            <p class="fw-500">{{ $karenderia->opening_time ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Opening Time</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->opening_time ?? 'N/A' }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Closing Time</label>
-                            <p class="fw-500">{{ $karenderia->closing_time ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Closing Time</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->closing_time ?? 'N/A' }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Delivery Fee</label>
-                            <p class="fw-500">₱{{ $karenderia->delivery_fee ?? '0' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Delivery Fee</label>
+                            <p class="fw-600" style="color: #111827;">₱{{ $karenderia->delivery_fee ?? '0' }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Delivery Time</label>
-                            <p class="fw-500">{{ $karenderia->delivery_time_minutes ?? 'N/A' }} minutes</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Delivery Time</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->delivery_time_minutes ?? 'N/A' }} minutes</p>
                         </div>
                     </div>
                 </div>
@@ -76,21 +76,21 @@
                 <!-- Location Information -->
                 <div class="row mb-4">
                     <div class="col-12">
-                        <h6 class="text-muted text-uppercase fs-7 mb-3">
+                        <h6 class="text-uppercase fs-7 mb-3" style="color: #374151; font-weight: 700;">
                             <i class="fas fa-map-marker-alt me-2"></i>Location Information
                         </h6>
                         <div class="mb-3">
-                            <label class="text-muted small">Address</label>
-                            <p class="fw-500">{{ $karenderia->address ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Address</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->address ?? 'N/A' }}</p>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="text-muted small">City</label>
-                                <p class="fw-500">{{ $karenderia->city ?? 'N/A' }}</p>
+                                <label class="small" style="color: #6b7280; font-weight: 600;">City</label>
+                                <p class="fw-600" style="color: #111827;">{{ $karenderia->city ?? 'N/A' }}</p>
                             </div>
                             <div class="col-md-6">
-                                <label class="text-muted small">Province</label>
-                                <p class="fw-500">{{ $karenderia->province ?? 'N/A' }}</p>
+                                <label class="small" style="color: #6b7280; font-weight: 600;">Province</label>
+                                <p class="fw-600" style="color: #111827;">{{ $karenderia->province ?? 'N/A' }}</p>
                             </div>
                         </div>
                     </div>
@@ -101,16 +101,16 @@
                 <!-- Contact Information -->
                 <div class="row mb-4">
                     <div class="col-12">
-                        <h6 class="text-muted text-uppercase fs-7 mb-3">
+                        <h6 class="text-uppercase fs-7 mb-3" style="color: #374151; font-weight: 700;">
                             <i class="fas fa-phone me-2"></i>Contact Information
                         </h6>
                         <div class="mb-3">
-                            <label class="text-muted small">Business Email</label>
-                            <p class="fw-500">{{ $karenderia->business_email ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Business Email</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->business_email ?? 'N/A' }}</p>
                         </div>
                         <div class="mb-3">
-                            <label class="text-muted small">Phone Number</label>
-                            <p class="fw-500">{{ $karenderia->phone ?? 'N/A' }}</p>
+                            <label class="small" style="color: #6b7280; font-weight: 600;">Phone Number</label>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->phone ?? 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
@@ -120,7 +120,7 @@
         <!-- Business Permit Section -->
         <div class="card mb-4">
             <div class="card-header header-gold">
-                <h5 class="card-title mb-0">
+                <h5 class="card-title mb-0" style="color: #1f2937; font-weight: 700;">
                     <i class="fas fa-file-pdf me-2"></i>Business Permit
                 </h5>
             </div>
@@ -155,23 +155,23 @@
         <!-- Owner Information -->
         <div class="card">
             <div class="card-header header-primary">
-                <h5 class="card-title mb-0">
+                <h5 class="card-title mb-0" style="color: #1f2937; font-weight: 700;">
                     <i class="fas fa-user me-2"></i>Owner Information
                 </h5>
             </div>
             <div class="card-body">
                 @if($karenderia->owner)
                     <div class="mb-3">
-                        <label class="text-muted small">Owner Name</label>
-                        <p class="fw-500">{{ $karenderia->owner->name }}</p>
+                        <label class="small" style="color: #6b7280; font-weight: 600;">Owner Name</label>
+                        <p class="fw-600" style="color: #111827;">{{ $karenderia->owner->name }}</p>
                     </div>
                     <div class="mb-3">
-                        <label class="text-muted small">Email</label>
-                        <p class="fw-500">{{ $karenderia->owner->email }}</p>
+                        <label class="small" style="color: #6b7280; font-weight: 600;">Email</label>
+                        <p class="fw-600" style="color: #111827;">{{ $karenderia->owner->email }}</p>
                     </div>
                     <div class="mb-0">
-                        <label class="text-muted small">Member Since</label>
-                        <p class="fw-500">{{ $karenderia->owner->created_at->format('M d, Y') }}</p>
+                        <label class="small" style="color: #6b7280; font-weight: 600;">Member Since</label>
+                        <p class="fw-600" style="color: #111827;">{{ $karenderia->owner->created_at->format('M d, Y') }}</p>
                     </div>
                 @else
                     <p class="text-muted">Owner information not available</p>
@@ -185,7 +185,7 @@
         <!-- Application Timeline -->
         <div class="card mb-4">
             <div class="card-header header-success">
-                <h5 class="card-title mb-0">
+                <h5 class="card-title mb-0" style="color: #1f2937; font-weight: 700;">
                     <i class="fas fa-history me-2"></i>Application Timeline
                 </h5>
             </div>
@@ -194,8 +194,8 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-primary"></div>
                         <div class="timeline-content">
-                            <p class="text-muted small mb-1">Submitted</p>
-                            <p class="fw-600">{{ $karenderia->created_at->format('M d, Y H:i') }}</p>
+                            <p class="small mb-1" style="color: #6b7280; font-weight: 600;">Submitted</p>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->created_at->format('M d, Y H:i') }}</p>
                         </div>
                     </div>
 
@@ -203,8 +203,8 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-success"></div>
                         <div class="timeline-content">
-                            <p class="text-muted small mb-1">Approved</p>
-                            <p class="fw-600">{{ $karenderia->approved_at->format('M d, Y H:i') }}</p>
+                            <p class="small mb-1" style="color: #6b7280; font-weight: 600;">Approved</p>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->approved_at->format('M d, Y H:i') }}</p>
                         </div>
                     </div>
                     @endif
@@ -213,8 +213,8 @@
                     <div class="timeline-item">
                         <div class="timeline-marker bg-danger"></div>
                         <div class="timeline-content">
-                            <p class="text-muted small mb-1">Rejected</p>
-                            <p class="fw-600">{{ $karenderia->rejected_at->format('M d, Y H:i') }}</p>
+                            <p class="small mb-1" style="color: #6b7280; font-weight: 600;">Rejected</p>
+                            <p class="fw-600" style="color: #111827;">{{ $karenderia->rejected_at->format('M d, Y H:i') }}</p>
                         </div>
                     </div>
                     @endif
@@ -226,7 +226,7 @@
         @if($karenderia->rejection_reason)
         <div class="card mb-4 border-danger">
             <div class="card-header bg-danger bg-opacity-10">
-                <h6 class="card-title mb-0 text-danger">
+                <h6 class="card-title mb-0 text-danger" style="font-weight: 700;">
                     <i class="fas fa-ban me-2"></i>Rejection Reason
                 </h6>
             </div>
@@ -239,7 +239,7 @@
         @if($karenderia->admin_notes)
         <div class="card mb-4 border-info">
             <div class="card-header bg-info bg-opacity-10">
-                <h6 class="card-title mb-0 text-info">
+                <h6 class="card-title mb-0 text-info" style="font-weight: 700;">
                     <i class="fas fa-sticky-note me-2"></i>Admin Notes
                 </h6>
             </div>
@@ -253,7 +253,7 @@
         @if($karenderia->status === 'pending')
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="card-title mb-0">
+                <h5 class="card-title mb-0" style="color: #1f2937; font-weight: 700;">
                     <i class="fas fa-check-circle me-2"></i>Actions
                 </h5>
             </div>
