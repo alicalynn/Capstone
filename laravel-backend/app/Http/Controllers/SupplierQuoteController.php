@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\IngredientRequest;
 use App\Models\SupplierQuote;
 use App\Models\User;
+use App\Notifications\NewQuoteNotification;
+use App\Notifications\QuoteAcceptedNotification;
+use App\Notifications\QuoteRejectedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -65,8 +68,9 @@ class SupplierQuoteController extends Controller
             'status' => 'pending',
         ]);
 
-        // Notify the karenderia owner
-        // TODO: Send notification to owner
+        // Notify the karenderia owner about the new quote
+        $owner = $ingredientRequest->karenderia->owner;
+        $owner->notify(new NewQuoteNotification($quote));
 
         return response()->json([
             'message' => 'Quote submitted successfully',
@@ -97,6 +101,19 @@ class SupplierQuoteController extends Controller
         // Accept the quote
         $quote->accept();
 
+        // Notify the supplier that their quote was accepted
+        $quote->supplier->notify(new QuoteAcceptedNotification($quote));
+
+        // Notify other suppliers that their quotes were rejected
+        $rejectedQuotes = $ingredientRequest->quotes()
+            ->where('id', '!=', $quote->id)
+            ->where('status', 'rejected')
+            ->get();
+
+        foreach ($rejectedQuotes as $rejectedQuote) {
+            $rejectedQuote->supplier->notify(new QuoteRejectedNotification($rejectedQuote));
+        }
+
         return response()->json([
             'message' => 'Quote accepted successfully',
             'data' => $quote->fresh(),
@@ -120,6 +137,9 @@ class SupplierQuoteController extends Controller
 
         // Reject the quote
         $quote->reject();
+
+        // Notify the supplier that their quote was rejected
+        $quote->supplier->notify(new QuoteRejectedNotification($quote));
 
         return response()->json([
             'message' => 'Quote rejected',

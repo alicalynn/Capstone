@@ -92,9 +92,9 @@
                 <div class="card-body">
                     @forelse($ingredientRequest->quotes as $quote)
                     @php
-                        $borderColor = $quote->status === 'accepted' ? '#10b981' : ($quote->status === 'pending' ? '#f59e0b' : '#ef4444');
+                        $borderColorClass = $quote->status === 'accepted' ? 'border-success' : ($quote->status === 'pending' ? 'border-warning' : 'border-danger');
                     @endphp
-                    <div class="quote-card mb-3 p-3 border rounded-2" style="border-left: 4px solid {{ $borderColor }};">
+                    <div class="quote-card mb-3 p-3 border rounded-2 {{ $borderColorClass }}" style="border-left-width: 4px;">
                         <div class="row">
                             <div class="col-md-8">
                                 <!-- Supplier Info -->
@@ -247,6 +247,18 @@
 .quote-card:hover {
     background-color: #f3f4f6;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.quote-card.border-success {
+    border-left-color: #10b981 !important;
+}
+
+.quote-card.border-warning {
+    border-left-color: #f59e0b !important;
+}
+
+.quote-card.border-danger {
+    border-left-color: #ef4444 !important;
 }
 </style>
 @endsection

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Notifications\RegistrationConfirmationNotification;
+use App\Notifications\SupplierApprovedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -244,6 +246,9 @@ class AuthController extends Controller
                 'application_status' => 'pending',
                 'business_permit' => $businessPermitPath
             ]);
+
+            // Send registration confirmation email
+            $user->notify(new RegistrationConfirmationNotification('supplier'));
 
             Log::info('Supplier registered successfully:', ['user_id' => $user->id, 'email' => $user->email]);
 

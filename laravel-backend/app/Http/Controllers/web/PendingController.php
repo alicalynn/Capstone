@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Karenderia;
 use App\Models\User;
 use App\Mail\RejectNotification;
+use App\Notifications\SupplierApprovedNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 
@@ -92,6 +93,11 @@ class PendingController extends Controller
             $user->application_status = 'approved';
             $user->verified = true;
             $user->save();
+
+            // Send approval notification email
+            if ($user->role === 'supplier') {
+                $user->notify(new SupplierApprovedNotification('supplier'));
+            }
 
             return redirect()->route('admin.pending')
                 ->with('success', "User '{$user->name}' has been approved successfully!");

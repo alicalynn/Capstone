@@ -40,7 +40,8 @@ class User extends Authenticatable
         'cuisine_preferences',
         'preferred_meal_times',
         'location',
-        'preferences'
+        'preferences',
+        'email_notifications_enabled'
     ];
 
     /**
@@ -64,6 +65,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'verified' => 'boolean',
+            'email_notifications_enabled' => 'boolean',
             'allergies' => 'array',
             'dietary_restrictions' => 'array',
             'cuisine_preferences' => 'array',
