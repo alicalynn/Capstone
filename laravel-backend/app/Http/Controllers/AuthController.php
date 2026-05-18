@@ -42,7 +42,8 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'role' => 'customer',
             'verified' => true,
-            'application_status' => 'approved'
+            'application_status' => 'approved',
+            'email_notifications_enabled' => true
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -125,7 +126,8 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role' => 'karenderia_owner',
-                'verified' => false
+                'verified' => false,
+                'email_notifications_enabled' => true
             ]);
 
             $karenderia = $user->karenderia()->create([
@@ -244,7 +246,8 @@ class AuthController extends Controller
                 'role' => 'supplier',
                 'verified' => false,
                 'application_status' => 'pending',
-                'business_permit' => $businessPermitPath
+                'business_permit' => $businessPermitPath,
+                'email_notifications_enabled' => true
             ]);
 
             // Send registration confirmation email

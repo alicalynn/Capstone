@@ -8,6 +8,7 @@ use App\Models\Karenderia;
 use App\Models\User;
 use App\Mail\RejectNotification;
 use App\Notifications\SupplierApprovedNotification;
+use App\Mail\KarenderiaApprovedNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 
@@ -45,10 +46,15 @@ class PendingController extends Controller
                 $karenderia->owner->application_status = 'approved';
                 $karenderia->owner->verified = true;
                 $karenderia->owner->save();
+
+                // Send approval notification email
+                Mail::to($karenderia->owner->email)->send(
+                    new KarenderiaApprovedNotification($karenderia)
+                );
             }
 
             return redirect()->route('admin.pending')
-                ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully!");
+                ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully! Approval email sent to owner.");
         } catch (\Exception $e) {
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to approve karenderia. Please try again.');

@@ -2,14 +2,11 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class RegistrationConfirmationNotification extends Notification implements ShouldQueue
+class RegistrationConfirmationNotification extends Notification
 {
-    use Queueable;
 
     public string $role;
 
@@ -28,7 +25,8 @@ class RegistrationConfirmationNotification extends Notification implements Shoul
      */
     public function via(object $notifiable): array
     {
-        if (!$notifiable->email_notifications_enabled) {
+        // Default to true if not explicitly set to false
+        if ($notifiable->email_notifications_enabled === false) {
             return [];
         }
         return ['mail'];
