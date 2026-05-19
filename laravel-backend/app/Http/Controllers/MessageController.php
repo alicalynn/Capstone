@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\IngredientRequest;
 use App\Models\Message;
 use App\Models\User;
+use App\Notifications\MessageSentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +48,12 @@ class MessageController extends Controller
         ]);
 
         $message->load(['fromUser:id,name,role', 'toUser:id,name,role']);
+
+        // Send notification to recipient
+        $recipientUser = User::find($validated['to_user_id']);
+        if ($recipientUser) {
+            $recipientUser->notify(new MessageSentNotification($message, $user));
+        }
 
         return response()->json([
             'message' => 'Message sent',

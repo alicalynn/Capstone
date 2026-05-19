@@ -4,12 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\IngredientRequest;
 use App\Models\Karenderia;
-use App\Models\KarenderiaSupplierSuki;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class IngredientRequestController extends Controller
 {
@@ -208,4 +205,43 @@ class IngredientRequestController extends Controller
             'my_quote' => $myQuote,
         ]);
     }
+
+    /**
+     * SUPPLIER: Mark an accepted ingredient request as delivered
+     */
+    public function markDelivered(Request $request, IngredientRequest $ingredientRequest): JsonResponse
+    {
+        $user = Auth::user();
+
+        // Verify user is the accepted supplier
+        if ($ingredientRequest->accepted_supplier_id !== $user->id) {
+            return response()->json(['message' => 'Only the accepted supplier can mark as delivered'], 403);
+        }
+
+        // Verify request is in accepted state
+        if ($ingredientRequest->status !== 'accepted') {
+            return response()->json(['message' => 'This request is not in accepted state'], 422);
+        }
+
+        // Verify both parties have accepted
+        $acceptedQuote = $ingredientRequest->quotes()
+            ->where('status', 'accepted')
+            ->where('supplier_id', $user->id)
+            ->first();
+
+        if (!$acceptedQuote) {
+            return response()->json(['message' => 'Quote not found or not accepted'], 404);
+        }
+
+        // Update request status to completed/delivered
+        $ingredientRequest->update([
+            'status' => 'completed',
+        ]);
+
+        return response()->json([
+            'message' => 'Order marked as delivered successfully',
+            'data' => $ingredientRequest,
+        ]);
+    }
+
 }

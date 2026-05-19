@@ -225,6 +225,7 @@ Route::middleware(['auth:sanctum'])->prefix('ingredient-requests')->group(functi
     Route::group(['middleware' => 'supplier.verified'], function () {
         Route::get('/supplier/available', [IngredientRequestController::class, 'supplierIndex']); // Supplier view available requests
         Route::get('/supplier/{ingredientRequest}', [IngredientRequestController::class, 'supplierShow']); // Supplier view request detail
+        Route::patch('/{ingredientRequest}/mark-delivered', [IngredientRequestController::class, 'markDelivered']); // Supplier mark order as delivered
     });
 });
 
