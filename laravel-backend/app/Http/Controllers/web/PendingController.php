@@ -37,7 +37,7 @@ class PendingController extends Controller
     public function approve(Request $request, $id)
     {
         try {
-            $karenderia = Karenderia::findOrFail($id);
+            $karenderia = Karenderia::with('owner')->findOrFail($id);
             $karenderia->status = 'approved';
             $karenderia->approved_at = now();
             $karenderia->save();
@@ -56,6 +56,10 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully! Approval email sent to owner.");
         } catch (\Exception $e) {
+            \Log::error('Failed to approve karenderia: ' . $e->getMessage(), [
+                'karenderia_id' => $id,
+                'exception' => $e
+            ]);
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to approve karenderia. Please try again.');
         }
@@ -67,7 +71,7 @@ class PendingController extends Controller
             'rejection_reason' => 'required|string|max:500'
         ]);
         try {
-            $karenderia = Karenderia::findOrFail($id);
+            $karenderia = Karenderia::with('owner')->findOrFail($id);
             $karenderia->status = 'rejected';
             $karenderia->rejection_reason = $request->rejection_reason;
             $karenderia->rejected_at = now();
@@ -87,6 +91,10 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been rejected. Notification email sent to owner.");
         } catch (\Exception $e) {
+            \Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
+                'karenderia_id' => $id,
+                'exception' => $e
+            ]);
             return redirect()->route('admin.pending')
                 ->with('error', 'Failed to reject karenderia. Please try again.');
         }
@@ -209,7 +217,7 @@ class PendingController extends Controller
         ]);
 
         try {
-            $karenderia = Karenderia::findOrFail($id);
+            $karenderia = Karenderia::with('owner')->findOrFail($id);
             $karenderia->status = 'rejected';
             $karenderia->rejection_reason = $request->rejection_reason;
             $karenderia->rejected_at = now();
@@ -232,6 +240,10 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been rejected. Notification email sent to owner.");
         } catch (\Exception $e) {
+            \Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
+                'karenderia_id' => $id,
+                'exception' => $e
+            ]);
             return redirect()->route('admin.review-application', $id)
                 ->with('error', 'Failed to reject karenderia. Please try again.');
         }
