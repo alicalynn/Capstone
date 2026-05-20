@@ -3,8 +3,6 @@
 namespace App\Mail;
 
 use App\Models\Karenderia;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -12,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 class RejectNotification extends Mailable
 {
-    use Queueable, SerializesModels;
+    use SerializesModels;
 
     public Karenderia $karenderia;
     public string $rejectionReason;
@@ -41,7 +39,8 @@ class RejectNotification extends Mailable
      */
     public function content(): Content
     {
-        $reapplyUrl = route('owner.reapply.page') . '?email=' . urlencode($this->karenderia->owner->email);
+        $ownerEmail = $this->karenderia->owner?->email ?? '';
+        $reapplyUrl = config('app.frontend_url', config('app.url')) . '/owner-reapply?email=' . urlencode($ownerEmail);
 
         return new Content(
             view: 'emails.owner-rejection-notification',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Notifications\RegistrationConfirmationNotification;
+use App\Notifications\KarenderiaRegistrationConfirmation;
 use App\Notifications\SupplierApprovedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -153,6 +154,9 @@ class AuthController extends Controller
                 'approved_at' => null,
                 'approved_by' => null
             ]);
+
+            // Send registration confirmation email
+            $user->notify(new KarenderiaRegistrationConfirmation());
 
             return response()->json([
                 'success' => true,
