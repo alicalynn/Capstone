@@ -404,72 +404,255 @@ class SupplierWorkflowController extends Controller
         }
     }
 
+    /**
+     * Get detailed order information with status timeline
+     */
+    public function getOrderDetail(Request $request, int $orderId): JsonResponse
+    {
+        $user = $request->user();
+        $order = SupplyOrder::with([
+            'supplier:id,name,email',
+            'karenderia:id,business_name,name,address',
+            'items.supplierItem:id,item_name,description,unit,category',
+        ])->findOrFail($orderId);
+
+        // Permission check
+        $canView = false;
+        if ($user->role === 'supplier' && $order->supplier_id === $user->id) {
+            $canView = true;
+        }
+        if ($user->role === 'karenderia_owner') {
+            $karenderia = Karenderia::where('owner_id', $user->id)->first();
+            if ($karenderia && $karenderia->id === $order->karenderia_id) {
+                $canView = true;
+            }
+        }
+
+        if (!$canView) {
+            return response()->json(['error' => 'Unauthorized to view this order'], 403);
+        }
+
+        return response()->json([
+            'data' => [
+                'order' => $order,
+                'timeline' => $order->getStatusTimeline(),
+                'next_possible_statuses' => $order->getNextPossibleStatuses(),
+                'is_terminal' => $order->isTerminal(),
+                'can_retry' => $order->canBeRetried(),
+            ]
+        ]);
+    }
+
     public function updateOrderStatus(Request $request, int $orderId): JsonResponse
     {
         $user = $request->user();
-
         $order = SupplyOrder::with('items.supplierItem')->findOrFail($orderId);
 
+        // Permission checks
         $canManageAsSupplier = $user->role === 'supplier' && $order->supplier_id === $user->id;
-        $isOwnerCancellingOwnOrder = false;
+        $canManageAsOwner = false;
 
         if ($user->role === 'karenderia_owner') {
             $karenderia = Karenderia::where('owner_id', $user->id)->first();
-            $isOwnerCancellingOwnOrder = $karenderia && $karenderia->id === $order->karenderia_id;
+            $canManageAsOwner = $karenderia && $karenderia->id === $order->karenderia_id;
         }
 
-        if (!$canManageAsSupplier && !$isOwnerCancellingOwnOrder) {
+        if (!$canManageAsSupplier && !$canManageAsOwner) {
             return response()->json(['error' => 'Unauthorized to update this order'], 403);
         }
 
+        // Validate request
         $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,delivered,cancelled',
+            'status' => 'required|in:confirmed,payment_confirmed,preparing,shipped,in_transit,out_for_delivery,delivering,delivered,delivery_failed,cancelled',
+            'delivery_method' => 'sometimes|in:pickup,delivery,courier',
+            'delivery_address' => 'sometimes|string|max:500',
+            'delivery_coordinates' => 'sometimes|json',
+            'delivered_by_name' => 'sometimes|string|max:255',
+            'delivery_notes' => 'sometimes|string|max:1000',
+            'delivery_signature_url' => 'sometimes|url',
+            'photo_proof_urls' => 'sometimes|json',
+            'failed_reason' => 'sometimes|string|max:500',
+            'payment_method' => 'sometimes|in:gcash,bank_transfer,onsite,credit_card',
+            'payment_reference' => 'sometimes|string|max:255',
         ]);
 
-        if ($isOwnerCancellingOwnOrder && $validated['status'] !== 'cancelled') {
-            return response()->json(['error' => 'Karenderia owners can only cancel orders'], 422);
-        }
-
-        if ($order->status === 'cancelled' || $order->status === 'delivered') {
-            return response()->json(['error' => 'This order can no longer be updated'], 422);
-        }
-
+        $newStatus = $validated['status'];
         $previousStatus = $order->status;
 
-        DB::transaction(function () use ($order, $validated, $previousStatus) {
-            $newStatus = $validated['status'];
+        // Check if order is in terminal state
+        if ($order->isTerminal()) {
+            return response()->json([
+                'error' => "Cannot update order in terminal state ({$previousStatus})"
+            ], 422);
+        }
 
-            if ($validated['status'] === 'cancelled' && $order->status !== 'cancelled') {
-                foreach ($order->items as $item) {
-                    if ($item->supplierItem) {
-                        $item->supplierItem->increment('available_stock', (float) $item->quantity);
-                    }
+        // Validate status transition
+        $allowedNextStatuses = $order->getNextPossibleStatuses();
+        if (!in_array($newStatus, $allowedNextStatuses)) {
+            return response()->json([
+                'error' => "Invalid status transition from {$previousStatus} to {$newStatus}",
+                'allowed_statuses' => $allowedNextStatuses
+            ], 422);
+        }
+
+        // Permission checks for status transitions
+        // Only supplier can update status forward, except owner can confirm delivery
+        if ($canManageAsOwner) {
+            // Karenderia owners can only mark delivered or cancel orders
+            if ($newStatus !== 'cancelled' && $newStatus !== 'delivered') {
+                return response()->json([
+                    'error' => 'Karenderia owners can only mark orders as delivered or cancel them'
+                ], 403);
+            }
+            // Owner can only mark as delivered when status is 'delivering'
+            if ($newStatus === 'delivered' && $previousStatus !== 'delivering') {
+                return response()->json([
+                    'error' => 'Can only mark as delivered when order is in delivering status',
+                    'current_status' => $previousStatus
+                ], 422);
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($order, $newStatus, $previousStatus, $validated, $user, $canManageAsOwner) {
+                $updateData = [
+                    'status' => $newStatus,
+                ];
+
+                // Record status change in history
+                $order->recordStatusChange($newStatus, $validated['failed_reason'] ?? null);
+
+                // Handle specific status transitions
+                switch ($newStatus) {
+                    case 'confirmed':
+                        $updateData['confirmed_at'] = now();
+                        break;
+
+                    case 'payment_confirmed':
+                        $updateData['payment_status'] = 'confirmed';
+                        $updateData['payment_date'] = now();
+                        if (isset($validated['payment_method'])) {
+                            $updateData['payment_method'] = $validated['payment_method'];
+                        }
+                        if (isset($validated['payment_reference'])) {
+                            $updateData['payment_reference'] = $validated['payment_reference'];
+                        }
+                        break;
+
+                    case 'preparing':
+                        if (isset($validated['delivery_method'])) {
+                            $updateData['delivery_method'] = $validated['delivery_method'];
+                        }
+                        if (isset($validated['delivery_address'])) {
+                            $updateData['delivery_address'] = $validated['delivery_address'];
+                        }
+                        if (isset($validated['delivery_coordinates'])) {
+                            $updateData['delivery_coordinates'] = json_decode($validated['delivery_coordinates'], true);
+                        }
+                        break;
+
+                    case 'shipped':
+                        $updateData['shipped_at'] = now();
+                        break;
+
+                    case 'out_for_delivery':
+                        $updateData['out_for_delivery_at'] = now();
+                        if (isset($validated['delivered_by_name'])) {
+                            $updateData['delivered_by_name'] = $validated['delivered_by_name'];
+                        }
+                        break;
+
+                    case 'delivering':
+                        // Order is currently being delivered
+                        if (isset($validated['delivered_by_name'])) {
+                            $updateData['delivered_by_name'] = $validated['delivered_by_name'];
+                        }
+                        break;
+
+                    case 'delivered':
+                        // *** CRITICAL: Only sync kitchen stock when order is DELIVERED ***
+                        $updateData['delivered_at'] = now();
+                        if (isset($validated['delivery_notes'])) {
+                            $updateData['delivery_notes'] = $validated['delivery_notes'];
+                        }
+                        if (isset($validated['delivery_signature_url'])) {
+                            $updateData['delivery_signature_url'] = $validated['delivery_signature_url'];
+                        }
+                        if (isset($validated['photo_proof_urls'])) {
+                            $updateData['photo_proof_urls'] = json_decode($validated['photo_proof_urls'], true);
+                        }
+
+                        // Sync kitchen stock ONLY on delivery
+                        $this->syncKitchenStockFromSupplyOrder($order, true);
+                        break;
+
+                    case 'delivery_failed':
+                        $updateData['failed_reason'] = $validated['failed_reason'] ?? 'Unknown reason';
+                        $updateData['retry_count'] = $order->retry_count + 1;
+                        break;
+
+                    case 'cancelled':
+                        // Restore supplier's available stock
+                        foreach ($order->items as $item) {
+                            if ($item->supplierItem) {
+                                $item->supplierItem->increment('available_stock', (float) $item->quantity);
+                            }
+                        }
+
+                        // Rollback kitchen stock if it was already synced on delivery
+                        if ($previousStatus === 'delivered') {
+                            $this->syncKitchenStockFromSupplyOrder($order, false);
+                        }
+                        break;
                 }
 
-                // Roll back owner kitchen stock if it was already added on confirmation.
-                if ($previousStatus === 'confirmed') {
-                    $this->syncKitchenStockFromSupplyOrder($order, false);
-                }
+                $order->update($updateData);
+
+                // Log the status update
+                Log::info("Supply order {$order->id} status updated", [
+                    'from_status' => $previousStatus,
+                    'to_status' => $newStatus,
+                    'user_id' => $user->id,
+                    'user_role' => $user->role,
+                    'timestamp' => now(),
+                ]);
+            });
+
+            // Return updated order with timeline
+            // Refresh order from database
+            $updatedOrder = SupplyOrder::find($orderId);
+
+            // Log delivery confirmation notification for supplier (non-blocking)
+            if ($newStatus === 'delivered' && $canManageAsOwner) {
+                Log::info("Delivery confirmed by karenderia owner", [
+                    'order_id' => $updatedOrder->id,
+                    'owner_id' => $user->id,
+                    'owner_email' => $user->email,
+                    'supplier_id' => $updatedOrder->supplier_id,
+                    'timestamp' => now(),
+                ]);
             }
 
-            // Treat "confirmed" as payment confirmed and move stocks into owner kitchen inventory once.
-            if ($newStatus === 'confirmed' && $previousStatus !== 'confirmed') {
-                $this->syncKitchenStockFromSupplyOrder($order, true);
-            }
+            return response()->json([
+                'message' => 'Order status updated successfully',
+                'data' => [
+                    'order' => $updatedOrder,
+                    'status' => $updatedOrder->status,
+                ]
+            ], 200);
 
-            $order->update([
-                'status' => $newStatus,
+        } catch (\Exception $e) {
+            Log::error("Failed to update supply order status", [
+                'order_id' => $orderId,
+                'requested_status' => $newStatus,
+                'error' => $e->getMessage(),
             ]);
-        });
 
-        return response()->json([
-            'message' => 'Order status updated successfully',
-            'data' => $order->fresh()->load([
-                'supplier:id,name,email',
-                'karenderia:id,business_name,name',
-                'items.supplierItem:id,item_name,unit',
-            ]),
-        ]);
+            return response()->json([
+                'error' => 'Failed to update order status',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     private function syncKitchenStockFromSupplyOrder(SupplyOrder $order, bool $increase): void
@@ -507,6 +690,44 @@ class SupplierWorkflowController extends Controller
             $inventoryItem->unit_cost = (float) $item->unit_price;
             $inventoryItem->last_restocked = now();
             $inventoryItem->save();
+        }
+    }
+
+    private function notifySupplierOfDeliveryConfirmation(SupplyOrder $order, User $ownerUser): void
+    {
+        try {
+            // Get the supplier
+            $supplier = User::find($order->supplier_id);
+            if (!$supplier) {
+                return;
+            }
+
+            // Get karenderia info for the notification message
+            $karenderia = Karenderia::find($order->karenderia_id);
+            $karenderiaName = $karenderia?->business_name ?: $karenderia?->name ?: 'Karenderia';
+
+            // Create notification message - this will appear as a system message in the order conversation
+            $notificationMessage = "[SYSTEM] Order #$order->id delivery confirmed by $karenderiaName on " . now()->format('M d, Y H:i A');
+
+            // Log the notification (can be extended to send actual notifications later)
+            Log::info('Delivery Confirmation Notification', [
+                'order_id' => $order->id,
+                'supplier_id' => $supplier->id,
+                'karenderia_name' => $karenderiaName,
+                'confirmed_by' => $ownerUser->email,
+                'timestamp' => now(),
+            ]);
+
+            // In a real app, you could also:
+            // 1. Send email notification to supplier
+            // 2. Create database notification record
+            // 3. Trigger real-time notification via websocket
+            // For now, the system message in the conversation serves as notification
+        } catch (\Exception $e) {
+            Log::error('Error notifying supplier of delivery:', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

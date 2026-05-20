@@ -25,5 +25,30 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Add CORS headers to all responses including errors
+        $exceptions->respond(function (\Illuminate\Http\Response $response, \Throwable $e) {
+            try {
+                $request = app(\Illuminate\Http\Request::class);
+                $origin = $request?->header('Origin');
+            } catch (\Exception $ex) {
+                $origin = null;
+            }
+            
+            $allowedOrigins = [
+                'http://localhost:8100',
+                'http://127.0.0.1:8100',
+                'http://192.168.1.17:8100',
+                'http://192.168.0.117:8100',
+                'http://192.168.100.136:8100',
+            ];
+
+            $allowedOrigin = in_array($origin, $allowedOrigins) ? $origin : '*';
+            
+            return $response
+                ->header('Access-Control-Allow-Origin', $allowedOrigin)
+                ->header('Access-Control-Allow-Credentials', 'true')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
+                ->header('Access-Control-Expose-Headers', 'Content-Length');
+        });
     })->create();
