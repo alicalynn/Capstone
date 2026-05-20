@@ -207,6 +207,7 @@ Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
     Route::post('/orders', [SupplierWorkflowController::class, 'createSupplyOrder']);
     Route::get('/orders/owner', [SupplierWorkflowController::class, 'ownerOrders']);
     Route::get('/orders/supplier', [SupplierWorkflowController::class, 'supplierOrders']);
+    Route::get('/orders/{orderId}', [SupplierWorkflowController::class, 'getOrderDetail']); // Get order detail with timeline
     Route::patch('/orders/{orderId}/status', [SupplierWorkflowController::class, 'updateOrderStatus']);
 });
 
