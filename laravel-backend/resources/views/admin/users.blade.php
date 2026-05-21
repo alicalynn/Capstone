@@ -368,7 +368,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="height: 75vh;">
-                <iframe id="userPermitPreviewFrame" src="" width="100%" height="100%" style="border: 0; border-radius: 8px;"></iframe>
+                <object id="userPermitPreviewFrame" data="" width="100%" height="100%" style="border: 0; border-radius: 8px; background: #fff;"></object>
             </div>
             <div class="modal-footer">
                 <a id="userPermitOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">
@@ -386,14 +386,14 @@ function previewPermit(button) {
     const businessName = button.dataset.businessName;
 
     document.getElementById('userPermitBusinessName').textContent = businessName;
-    document.getElementById('userPermitPreviewFrame').src = url;
+    document.getElementById('userPermitPreviewFrame').data = url;
     document.getElementById('userPermitOpenNewTab').href = url;
 
     const modal = new bootstrap.Modal(document.getElementById('userPermitPreviewModal'));
     modal.show();
 
     document.getElementById('userPermitPreviewModal').addEventListener('hidden.bs.modal', function () {
-        document.getElementById('userPermitPreviewFrame').src = '';
+        document.getElementById('userPermitPreviewFrame').data = '';
     }, { once: true });
 }
 </script>

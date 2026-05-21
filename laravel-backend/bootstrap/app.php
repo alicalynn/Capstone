@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,30 +26,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Add CORS headers to all responses including errors
-        $exceptions->respond(function (\Illuminate\Http\Response $response, \Throwable $e) {
-            try {
-                $request = app(\Illuminate\Http\Request::class);
-                $origin = $request?->header('Origin');
-            } catch (\Exception $ex) {
-                $origin = null;
-            }
-            
-            $allowedOrigins = [
-                'http://localhost:8100',
-                'http://127.0.0.1:8100',
-                'http://192.168.1.17:8100',
-                'http://192.168.0.117:8100',
-                'http://192.168.100.136:8100',
-            ];
+        $exceptions->respond(function (SymfonyResponse $response) {
+            $request = request();
+            $origin = $request->header('Origin');
 
-            $allowedOrigin = in_array($origin, $allowedOrigins) ? $origin : '*';
-            
-            return $response
-                ->header('Access-Control-Allow-Origin', $allowedOrigin)
-                ->header('Access-Control-Allow-Credentials', 'true')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-                ->header('Access-Control-Expose-Headers', 'Content-Length');
+            if ($origin) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+                $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+                $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-Token');
+                $response->headers->set('Access-Control-Expose-Headers', 'Content-Length, X-JSON-Response');
+            }
+
+            return $response;
         });
     })->create();
+
+
+

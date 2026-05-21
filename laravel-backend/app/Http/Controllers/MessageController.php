@@ -112,10 +112,16 @@ class MessageController extends Controller
     {
         $user = Auth::user();
 
-        $conversations = Message::where('from_user_id', $user->id)
-            ->orWhere('to_user_id', $user->id)
+        $latestMessageIds = Message::query()
+            ->selectRaw('MAX(id) as id')
+            ->where(function ($query) use ($user) {
+                $query->where('from_user_id', $user->id)
+                    ->orWhere('to_user_id', $user->id);
+            })
+            ->groupBy('ingredient_request_id');
+
+        $conversations = Message::whereIn('id', $latestMessageIds)
             ->with(['ingredientRequest', 'fromUser:id,name,role', 'toUser:id,name,role'])
-            ->groupBy('ingredient_request_id')
             ->orderByDesc('created_at')
             ->paginate(20);
 

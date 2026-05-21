@@ -69,6 +69,11 @@ Route::get('/health', function () {
     return response()->json(['status' => 'Laravel backend is running!', 'timestamp' => now()]);
 });
 
+// Dummy login route to prevent "Route [login] not defined" errors for API requests
+Route::get('/login', function () {
+    return response()->json(['message' => 'Unauthenticated'], 401);
+})->name('login');
+
 // Authentication routes
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
