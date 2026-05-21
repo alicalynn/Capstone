@@ -82,6 +82,16 @@ class Karenderia extends Model
         return $this->hasMany(DailyMenu::class);
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(KarenderiaReview::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(KarenderiaReport::class);
+    }
+
     // Scope for active karenderias
     public function scopeActive($query)
     {

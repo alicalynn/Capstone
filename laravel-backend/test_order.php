@@ -1,6 +1,6 @@
 <?php
 require __DIR__.'/bootstrap/app.php';
-$app = make(\Illuminate\Contracts\Foundation\Application::class);
+$app = app();
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $order = \App\Models\SupplyOrder::find(12);

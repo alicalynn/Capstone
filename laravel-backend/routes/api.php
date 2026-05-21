@@ -49,6 +49,7 @@ Route::post('/emergency-login', function (Request $request) {
 use App\Http\Controllers\DailyMenuController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SupplierWorkflowController;
+use App\Http\Controllers\KarenderiaReviewController;
 use App\Http\Controllers\IngredientRequestController;
 use App\Http\Controllers\SupplierQuoteController;
 use App\Http\Controllers\MessageController;
@@ -317,4 +318,20 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::put('/users/{userId}/role', [AdminController::class, 'updateUserRole']);
     Route::put('/users/{userId}/toggle-status', [AdminController::class, 'toggleUserStatus']);
     Route::delete('/users/{userId}', [AdminController::class, 'deleteUser']);
+    
+    // Karenderia Reports (Admin moderation)
+    Route::get('/reports', [KarenderiaReviewController::class, 'getReports']);
+    Route::get('/reports/pending-reviews', [KarenderiaReviewController::class, 'getPendingReviews']);
+    Route::patch('/reviews/{reviewId}/moderate', [KarenderiaReviewController::class, 'moderateReview']);
+});
+
+// Public Karenderia Reviews Routes (No auth required for reading)
+Route::prefix('karenderia-reviews')->group(function () {
+    Route::get('/{karenderiaId}', [KarenderiaReviewController::class, 'getReviews']);
+});
+
+// Authenticated Karenderia Reviews Routes
+Route::middleware('auth:sanctum')->prefix('karenderia-reviews')->group(function () {
+    Route::post('/{karenderiaId}', [KarenderiaReviewController::class, 'createReview']);
+    Route::post('/{karenderiaId}/report', [KarenderiaReviewController::class, 'reportIssue']);
 });
