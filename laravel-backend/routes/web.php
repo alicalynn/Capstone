@@ -29,6 +29,11 @@ Route::get('/', function () {
     return redirect('/admin/login');
 });
 
+// Dummy login route for authentication middleware fallback
+Route::get('/login', function () {
+    return redirect('/admin/login');
+})->name('login');
+
 // Admin Web Interface Routes
 Route::prefix('admin')->group(function () {
     // Admin login

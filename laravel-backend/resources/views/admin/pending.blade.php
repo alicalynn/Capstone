@@ -230,7 +230,7 @@ use Illuminate\Support\Str;
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="height: 75vh;">
-                <iframe id="permitPreviewFrame" src="" width="100%" height="100%" style="border: 0; border-radius: 8px;"></iframe>
+                <object id="permitPreviewFrame" data="" width="100%" height="100%" style="border: 0; border-radius: 8px; background: #fff;"></object>
             </div>
             <div class="modal-footer">
                 <a id="permitOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">
@@ -376,13 +376,13 @@ function previewPermit(button) {
     const businessName = button.dataset.businessName;
 
     document.getElementById('permitBusinessName').textContent = businessName;
-    document.getElementById('permitPreviewFrame').src = url;
+    document.getElementById('permitPreviewFrame').data = url;
     document.getElementById('permitOpenNewTab').href = url;
     new bootstrap.Modal(document.getElementById('permitPreviewModal')).show();
 }
 
 document.getElementById('permitPreviewModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('permitPreviewFrame').src = '';
+    document.getElementById('permitPreviewFrame').data = '';
 });
 </script>
 @endsection
