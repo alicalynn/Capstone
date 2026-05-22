@@ -209,6 +209,12 @@
                         <a class="nav-link {{ request()->routeIs('admin.karenderias') ? 'active' : '' }}" href="{{ route('admin.karenderias') }}">
                             <i class="fas fa-store me-2"></i>Karenderias
                         </a>
+                        <a class="nav-link {{ request()->routeIs('admin.reports') ? 'active' : '' }}" href="{{ route('admin.reports') }}">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Reports
+                            @if(($reportCount ?? 0) > 0)
+                                <span class="badge bg-danger ms-2">{{ $reportCount }}</span>
+                            @endif
+                        </a>
                     </nav>
                     
                     <div class="mt-auto">

@@ -74,6 +74,23 @@ use Illuminate\Support\Str;
             </div>
         </div>
     </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted">Open Reports</h6>
+                        <h3 class="text-warning">{{ $stats['open_reports'] }}</h3>
+                        <small class="text-muted">Customer issues to investigate</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row">
@@ -162,6 +179,12 @@ use Illuminate\Support\Str;
                     <a href="{{ route('admin.karenderias') }}" class="btn btn-success">
                         <i class="fas fa-store me-2"></i>View Karenderias
                     </a>
+                    <a href="{{ route('admin.reports') }}" class="btn btn-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>View Reports
+                        @if($stats['open_reports'] > 0)
+                            <span class="badge bg-light text-dark ms-2">{{ $stats['open_reports'] }}</span>
+                        @endif
+                    </a>
                 </div>
             </div>
         </div>
@@ -201,7 +224,6 @@ use Illuminate\Support\Str;
             </div>
         </div>
     </div>
-</div>
 @endsection
 
 @section('scripts')

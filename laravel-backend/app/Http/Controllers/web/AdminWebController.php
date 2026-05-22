@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Karenderia;
+use App\Models\KarenderiaReport;
 
 class AdminWebController extends Controller
 {
@@ -78,6 +79,7 @@ class AdminWebController extends Controller
             'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
             'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
             'rejected_karenderias' => Karenderia::where('status', 'rejected')->count(),
+            'open_reports' => KarenderiaReport::unresolved()->count(),
         ];
 
         $recent_registrations = Karenderia::with('owner')
@@ -85,8 +87,56 @@ class AdminWebController extends Controller
             ->limit(5)
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_registrations'))
-            ->with('pendingCount', $stats['pending_approvals']);
+        $recent_reports = KarenderiaReport::with([
+                'karenderia:id,name,business_name',
+                'reporter:id,name,email'
+            ])
+            ->unresolved()
+            ->orderBy('verified', 'desc')
+            ->orderBy('similar_reports_count', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return view('admin.dashboard', compact('stats', 'recent_registrations', 'recent_reports'))
+            ->with('pendingCount', $stats['pending_approvals'])
+            ->with('reportCount', $stats['open_reports']);
+    }
+
+    public function reports()
+    {
+        $pendingKarenderias = Karenderia::where('status', 'pending')->count();
+        $pendingSuppliers = User::where('role', 'supplier')
+            ->where(function ($query) {
+                $query->where('application_status', 'pending')
+                      ->orWhereNull('application_status');
+            })
+            ->count();
+
+        $stats = [
+            'total_users' => User::count(),
+            'total_customers' => User::where('role', 'customer')->count(),
+            'total_karenderia_owners' => User::where('role', 'karenderia_owner')->count(),
+            'total_suppliers' => User::where('role', 'supplier')->count(),
+            'pending_karenderias' => $pendingKarenderias,
+            'pending_suppliers' => $pendingSuppliers,
+            'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
+            'open_reports' => KarenderiaReport::unresolved()->count(),
+        ];
+
+        $reports = KarenderiaReport::with([
+                'karenderia:id,name,business_name',
+                'reporter:id,name,email'
+            ])
+            ->unresolved()
+            ->orderBy('verified', 'desc')
+            ->orderBy('similar_reports_count', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(12);
+
+        return view('admin.reports', compact('stats', 'reports'))
+            ->with('pendingCount', $stats['pending_approvals'])
+            ->with('reportCount', $stats['open_reports']);
     }
 
     public function users(Request $request)

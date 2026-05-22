@@ -43,6 +43,7 @@ Route::prefix('admin')->group(function () {
     // Protected admin routes
     Route::middleware(['auth.admin'])->group(function () {
         Route::get('/dashboard', [AdminWebController::class, 'dashboard'])->name('admin.dashboard');
+        Route::get('/reports', [AdminWebController::class, 'reports'])->name('admin.reports');
         Route::get('/pending', [PendingController::class, 'index'])->name('admin.pending');
         Route::get('/pending/permit/{id}', [PendingController::class, 'businessPermit'])->name('admin.pending.permit');
         Route::get('/pending/{id}/review', [PendingController::class, 'review'])->name('admin.review-application');

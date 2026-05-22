@@ -7,6 +7,7 @@ use App\Models\KarenderiaReview;
 use App\Models\KarenderiaReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class KarenderiaReviewController extends Controller
@@ -136,10 +137,21 @@ class KarenderiaReviewController extends Controller
             'description' => 'required|string|max:3000|min:10',
             'evidence' => 'sometimes|string|max:1000',
             'attachments' => 'sometimes|array|max:3',
-            'attachments.*' => 'url',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
         ]);
 
         try {
+            $attachmentUrls = [];
+
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $attachment) {
+                    if ($attachment && $attachment->isValid()) {
+                        $path = $attachment->store('karenderia-report-attachments', 'public');
+                        $attachmentUrls[] = Storage::url($path);
+                    }
+                }
+            }
+
             // Create report
             $report = KarenderiaReport::create([
                 'karenderia_id' => $karenderiaId,
@@ -148,7 +160,7 @@ class KarenderiaReviewController extends Controller
                 'report_type' => $validated['report_type'],
                 'description' => $validated['description'],
                 'evidence' => $validated['evidence'] ?? null,
-                'attachments' => $validated['attachments'] ?? null,
+                'attachments' => !empty($attachmentUrls) ? $attachmentUrls : null,
                 'status' => 'new',
                 'verified' => false,
             ]);
