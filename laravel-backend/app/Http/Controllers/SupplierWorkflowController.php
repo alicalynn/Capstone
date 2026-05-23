@@ -266,6 +266,7 @@ class SupplierWorkflowController extends Controller
             'items' => 'required|array|min:1',
             'items.*.supplier_inventory_item_id' => 'required|exists:supplier_inventory_items,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
+            'payment_method' => 'nullable|in:cod,paymaya_sandbox,paypal_sandbox',
             'notes' => 'nullable|string',
             'delivery_date' => 'nullable|date',
         ]);
@@ -303,6 +304,8 @@ class SupplierWorkflowController extends Controller
                 'karenderia_id' => $karenderia->id,
                 'supplier_id' => $supplierIds->first(),
                 'status' => 'pending',
+                'payment_status' => 'pending',
+                'payment_method' => $validated['payment_method'] ?? 'cod',
                 'total_amount' => 0,
                 'notes' => $validated['notes'] ?? null,
                 'delivery_date' => $validated['delivery_date'] ?? null,
@@ -472,7 +475,7 @@ class SupplierWorkflowController extends Controller
             'delivery_signature_url' => 'sometimes|url',
             'photo_proof_urls' => 'sometimes|json',
             'failed_reason' => 'sometimes|string|max:500',
-            'payment_method' => 'sometimes|in:gcash,bank_transfer,onsite,credit_card',
+            'payment_method' => 'sometimes|in:cod,paymaya_sandbox,paypal_sandbox,gcash,bank_transfer,onsite,credit_card',
             'payment_reference' => 'sometimes|string|max:255',
         ]);
 

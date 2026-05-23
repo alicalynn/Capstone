@@ -53,6 +53,7 @@ use App\Http\Controllers\KarenderiaReviewController;
 use App\Http\Controllers\IngredientRequestController;
 use App\Http\Controllers\SupplierQuoteController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\SupplyOrderMessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -213,6 +214,9 @@ Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
     Route::post('/orders', [SupplierWorkflowController::class, 'createSupplyOrder']);
     Route::get('/orders/owner', [SupplierWorkflowController::class, 'ownerOrders']);
     Route::get('/orders/supplier', [SupplierWorkflowController::class, 'supplierOrders']);
+    Route::get('/orders/{orderId}/messages', [SupplyOrderMessageController::class, 'index']);
+    Route::post('/orders/{orderId}/messages', [SupplyOrderMessageController::class, 'store']);
+    Route::delete('/orders/{orderId}/messages', [SupplyOrderMessageController::class, 'destroy']);
     Route::get('/orders/{orderId}', [SupplierWorkflowController::class, 'getOrderDetail']); // Get order detail with timeline
     Route::patch('/orders/{orderId}/status', [SupplierWorkflowController::class, 'updateOrderStatus']);
 });

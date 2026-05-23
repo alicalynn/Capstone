@@ -64,6 +64,11 @@ class SupplyOrder extends Model
         return $this->hasMany(SupplyOrderItem::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(SupplyOrderMessage::class);
+    }
+
     /**
      * Get the timeline of all status changes for this order
      */
