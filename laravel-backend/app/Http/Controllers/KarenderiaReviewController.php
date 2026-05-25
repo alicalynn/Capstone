@@ -50,12 +50,13 @@ class KarenderiaReviewController extends Controller
         // Validate request
         $validated = $request->validate([
             'rating' => 'required|integer|between:1,5',
-            'comment' => 'sometimes|string|max:2000',
-            'karenderia_status' => 'required|in:open,closed_temporary,closed_permanent,unknown',
-            'food_feedback' => 'sometimes|string|max:1000',
-            'food_quality_rating' => 'sometimes|integer|between:1,5',
-            'delivery_experience_rating' => 'sometimes|integer|between:1,5',
-            'tags' => 'sometimes|array|max:5',
+            'comment' => 'nullable|string|max:2000',
+            'karenderia_status' => 'nullable|in:open,closed_temporary,closed_permanent,unknown',
+            'food_feedback' => 'nullable|string|max:1000',
+            'food_quality_rating' => 'nullable|integer|between:1,5',
+            'delivery_experience_rating' => 'nullable|integer|between:1,5',
+            'tags' => 'nullable|array|max:5',
+            'tags.*' => 'string|max:100',
         ]);
 
         try {
@@ -77,16 +78,16 @@ class KarenderiaReviewController extends Controller
                 'reviewer_type' => $user->role,
                 'rating' => $validated['rating'],
                 'comment' => $validated['comment'] ?? null,
-                'karenderia_status' => $validated['karenderia_status'],
+                'karenderia_status' => $validated['karenderia_status'] ?? 'unknown',
                 'food_feedback' => $validated['food_feedback'] ?? null,
                 'food_quality_rating' => $validated['food_quality_rating'] ?? null,
                 'delivery_experience_rating' => $validated['delivery_experience_rating'] ?? null,
-                'tags' => $validated['tags'] ?? null,
+                'tags' => !empty($validated['tags']) ? $validated['tags'] : null,
                 'reviewed_at' => now(),
                 'status' => 'pending', // Requires moderation
             ]);
 
-            // Check for serious status reports
+            // Check for serious status reports (only if explicitly marked as permanently closed)
             if ($validated['karenderia_status'] === 'closed_permanent') {
                 // Auto-create a report for permanent closure
                 $this->createAutoReport(
@@ -116,10 +117,13 @@ class KarenderiaReviewController extends Controller
                 'karenderia_id' => $karenderiaId,
                 'reviewer_id' => $user->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'error' => 'Failed to submit review'
+                'error' => 'Failed to submit review',
+                'message' => $e->getMessage(),
+                'debug' => config('app.debug') ? $e->getTraceAsString() : null
             ], 500);
         }
     }
