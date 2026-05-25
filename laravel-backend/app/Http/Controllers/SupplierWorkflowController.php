@@ -8,6 +8,7 @@ use App\Models\KarenderiaSupplierSuki;
 use App\Models\SupplierInventoryItem;
 use App\Models\SupplyOrder;
 use App\Models\User;
+use App\Notifications\OwnerConfirmedDeliveryNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -514,6 +515,14 @@ class SupplierWorkflowController extends Controller
                     'current_status' => $previousStatus
                 ], 422);
             }
+        } elseif ($canManageAsSupplier) {
+            // Supplier cannot mark as delivered until owner has confirmed
+            if ($newStatus === 'delivered' && !$order->owner_confirmed_delivery) {
+                return response()->json([
+                    'error' => 'Cannot mark as delivered until owner confirms delivery',
+                    'current_status' => $previousStatus
+                ], 422);
+            }
         }
 
         try {
@@ -575,6 +584,13 @@ class SupplierWorkflowController extends Controller
                     case 'delivered':
                         // *** CRITICAL: Only sync kitchen stock when order is DELIVERED ***
                         $updateData['delivered_at'] = now();
+                        
+                        // If owner is confirming delivery, set the confirmation flag
+                        if ($canManageAsOwner) {
+                            $updateData['owner_confirmed_delivery'] = true;
+                            $updateData['owner_confirmed_delivery_at'] = now();
+                        }
+                        
                         if (isset($validated['delivery_notes'])) {
                             $updateData['delivery_notes'] = $validated['delivery_notes'];
                         }
@@ -632,8 +648,12 @@ class SupplierWorkflowController extends Controller
                     'owner_id' => $user->id,
                     'owner_email' => $user->email,
                     'supplier_id' => $updatedOrder->supplier_id,
-                    'timestamp' => now(),
                 ]);
+                
+                // Send notification to supplier that owner has confirmed delivery
+                if ($updatedOrder->supplier) {
+                    $updatedOrder->supplier->notify(new OwnerConfirmedDeliveryNotification($updatedOrder));
+                }
             }
 
             return response()->json([
