@@ -76,6 +76,25 @@ use Illuminate\Support\Str;
     </div>
 
     <div class="col-md-3 mb-3">
+        <a href="{{ route('admin.reviews') }}" class="text-decoration-none">
+            <div class="card stat-card warning" style="cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.boxShadow='0 4px 20px rgba(0, 0, 0, 0.15)'" onmouseout="this.style.boxShadow='none'">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-muted">Pending Reviews</h6>
+                            <h3 class="text-warning">{{ $stats['pending_reviews'] ?? 0 }}</h3>
+                            <small class="text-muted">Customer feedback</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3 mb-3">
         <div class="card stat-card warning">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -183,6 +202,12 @@ use Illuminate\Support\Str;
                         <i class="fas fa-exclamation-triangle me-2"></i>View Reports
                         @if($stats['open_reports'] > 0)
                             <span class="badge bg-light text-dark ms-2">{{ $stats['open_reports'] }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('admin.reviews') }}" class="btn btn-info">
+                        <i class="fas fa-star me-2"></i>Moderate Reviews
+                        @if(($stats['pending_reviews'] ?? 0) > 0)
+                            <span class="badge bg-light text-dark ms-2">{{ $stats['pending_reviews'] }}</span>
                         @endif
                     </a>
                 </div>

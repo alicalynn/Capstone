@@ -54,6 +54,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/pending/user/{id}/approve', [PendingController::class, 'approveUser'])->name('admin.pending.user.approve');
         Route::post('/pending/user/{id}/reject', [PendingController::class, 'rejectUser'])->name('admin.pending.user.reject');
         
+        // Customer Reviews Moderation
+        Route::get('/reviews', [PendingController::class, 'reviews'])->name('admin.reviews');
+        Route::post('/reviews/{id}/approve', [PendingController::class, 'approveReview'])->name('admin.reviews.approve');
+        Route::post('/reviews/{id}/reject', [PendingController::class, 'rejectReview'])->name('admin.reviews.reject');
+        
         Route::get('/users', [AdminWebController::class, 'users'])->name('admin.users');
         Route::get('/users/{id}/edit', [AdminWebController::class, 'editUser'])->name('admin.edit-user');
         Route::put('/users/{id}', [AdminWebController::class, 'updateUser'])->name('admin.update-user');

@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Karenderia;
 use App\Models\User;
+use App\Models\KarenderiaReview;
 use App\Mail\RejectNotification;
 use App\Notifications\SupplierApprovedNotification;
 use App\Mail\KarenderiaApprovedNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PendingController extends Controller
 {
@@ -31,7 +33,11 @@ class PendingController extends Controller
 
         $pendingCount = $pendingKarenderias->total() + $pendingSuppliers->count();
 
-        return view('admin.pending', compact('pendingKarenderias', 'pendingSuppliers'))->with('pendingCount', $pendingCount);
+        $stats = [
+            'pending_reviews' => KarenderiaReview::where('status', 'pending')->count(),
+        ];
+
+        return view('admin.pending', compact('pendingKarenderias', 'pendingSuppliers', 'stats'))->with('pendingCount', $pendingCount);
     }
 
     public function approve(Request $request, $id)
@@ -56,7 +62,7 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been approved successfully! Approval email sent to owner.");
         } catch (\Exception $e) {
-            \Log::error('Failed to approve karenderia: ' . $e->getMessage(), [
+            Log::error('Failed to approve karenderia: ' . $e->getMessage(), [
                 'karenderia_id' => $id,
                 'exception' => $e
             ]);
@@ -91,7 +97,7 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been rejected. Notification email sent to owner.");
         } catch (\Exception $e) {
-            \Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
+            Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
                 'karenderia_id' => $id,
                 'exception' => $e
             ]);
@@ -240,7 +246,7 @@ class PendingController extends Controller
             return redirect()->route('admin.pending')
                 ->with('success', "Karenderia '{$karenderia->name}' has been rejected. Notification email sent to owner.");
         } catch (\Exception $e) {
-            \Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
+            Log::error('Failed to reject karenderia: ' . $e->getMessage(), [
                 'karenderia_id' => $id,
                 'exception' => $e
             ]);
@@ -257,5 +263,78 @@ class PendingController extends Controller
             ->toArray();
 
         return view('pending.pendingDashboard', ['pendingKarenderias' => $pendingKarenderias]);
+    }
+
+    /**
+     * Show pending customer reviews for moderation
+     */
+    public function reviews()
+    {
+        $pendingReviews = \App\Models\KarenderiaReview::with(['karenderia', 'reviewer'])
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        $reviewStats = [
+            'pending_count' => \App\Models\KarenderiaReview::where('status', 'pending')->count(),
+            'approved_count' => \App\Models\KarenderiaReview::where('status', 'approved')->count(),
+            'rejected_count' => \App\Models\KarenderiaReview::where('status', 'rejected')->count(),
+            'total_reviews' => \App\Models\KarenderiaReview::count()
+        ];
+
+        $stats = [
+            'pending_reviews' => $reviewStats['pending_count'],
+        ];
+
+        return view('admin.customer-reviews', compact('pendingReviews', 'reviewStats', 'stats'));
+    }
+
+    /**
+     * Approve a customer review
+     */
+    public function approveReview(Request $request, $id)
+    {
+        try {
+            $review = \App\Models\KarenderiaReview::findOrFail($id);
+            $review->status = 'approved';
+            $review->save();
+
+            return redirect()->route('admin.reviews')
+                ->with('success', "Review from {$review->reviewer->name} has been approved.");
+        } catch (\Exception $e) {
+            Log::error('Failed to approve review: ' . $e->getMessage(), [
+                'review_id' => $id,
+                'exception' => $e
+            ]);
+            return redirect()->route('admin.reviews')
+                ->with('error', 'Failed to approve review. Please try again.');
+        }
+    }
+
+    /**
+     * Reject a customer review
+     */
+    public function rejectReview(Request $request, $id)
+    {
+        $request->validate([
+            'moderation_note' => 'nullable|string|max:500'
+        ]);
+
+        try {
+            $review = \App\Models\KarenderiaReview::findOrFail($id);
+            $review->status = 'rejected';
+            $review->moderation_note = $request->moderation_note;
+            $review->save();
+
+            return redirect()->route('admin.reviews')
+                ->with('success', "Review from {$review->reviewer->name} has been rejected.");
+        } catch (\Exception $e) {
+            Log::error('Failed to reject review: ' . $e->getMessage(), [
+                'review_id' => $id,
+                'exception' => $e
+            ]);
+            return redirect()->route('admin.reviews')
+                ->with('error', 'Failed to reject review. Please try again.');
+        }
     }
 }

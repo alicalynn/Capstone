@@ -330,6 +330,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     
     // Karenderia Reports (Admin moderation)
     Route::get('/reports', [KarenderiaReviewController::class, 'getReports']);
+    Route::post('/reports/{reportId}/investigate', [KarenderiaReviewController::class, 'investigateReport']);
     Route::get('/reports/pending-reviews', [KarenderiaReviewController::class, 'getPendingReviews']);
     Route::patch('/reviews/{reviewId}/moderate', [KarenderiaReviewController::class, 'moderateReview']);
 });

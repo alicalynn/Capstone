@@ -44,31 +44,40 @@ class KarenderiaReviewController extends Controller
      */
     public function createReview(Request $request, int $karenderiaId): JsonResponse
     {
-        $user = $request->user();
-        $karenderia = Karenderia::findOrFail($karenderiaId);
-
-        // Validate request
-        $validated = $request->validate([
-            'rating' => 'required|integer|between:1,5',
-            'comment' => 'nullable|string|max:2000',
-            'karenderia_status' => 'nullable|in:open,closed_temporary,closed_permanent,unknown',
-            'food_feedback' => 'nullable|string|max:1000',
-            'food_quality_rating' => 'nullable|integer|between:1,5',
-            'delivery_experience_rating' => 'nullable|integer|between:1,5',
-            'tags' => 'nullable|array|max:5',
-            'tags.*' => 'string|max:100',
-        ]);
-
         try {
+            $user = $request->user();
+            $karenderia = Karenderia::findOrFail($karenderiaId);
+
+            // Validate request
+            $validated = $request->validate([
+                'rating' => 'required|integer|between:1,5',
+                'comment' => 'required|string|min:10|max:2000',
+                'karenderia_status' => 'nullable|in:open,closed_temporary,closed_permanent,unknown',
+                'food_feedback' => 'nullable|string|max:1000',
+                'food_quality_rating' => 'nullable|integer|between:1,5',
+                'delivery_experience_rating' => 'nullable|integer|between:1,5',
+                'tags' => 'nullable|array|max:5',
+                'tags.*' => 'string|max:100',
+            ]);
+
             // Check if user already reviewed this karenderia
             $existingReview = KarenderiaReview::where('karenderia_id', $karenderiaId)
                 ->where('reviewer_id', $user->id)
                 ->exists();
 
             if ($existingReview) {
+                $karenderiaName = $karenderia->business_name ?: $karenderia->name;
                 return response()->json([
-                    'error' => 'You have already reviewed this karenderia'
+                    'error' => "You have already reviewed {$karenderiaName}. You can only submit one review per karenderia."
                 ], 422);
+            }
+
+            // Ensure tags are properly formatted as array of strings
+            $tags = null;
+            if (!empty($validated['tags']) && is_array($validated['tags'])) {
+                // Convert tags to array of strings and filter out empty values
+                $tags = array_filter(array_map('strval', $validated['tags']));
+                $tags = !empty($tags) ? array_values($tags) : null; // Re-index array
             }
 
             // Create review
@@ -82,7 +91,7 @@ class KarenderiaReviewController extends Controller
                 'food_feedback' => $validated['food_feedback'] ?? null,
                 'food_quality_rating' => $validated['food_quality_rating'] ?? null,
                 'delivery_experience_rating' => $validated['delivery_experience_rating'] ?? null,
-                'tags' => !empty($validated['tags']) ? $validated['tags'] : null,
+                'tags' => $tags,
                 'reviewed_at' => now(),
                 'status' => 'pending', // Requires moderation
             ]);
@@ -102,28 +111,49 @@ class KarenderiaReviewController extends Controller
                 'karenderia_id' => $karenderiaId,
                 'reviewer_id' => $user->id,
                 'rating' => $validated['rating'],
+                'tags' => $review->tags,
                 'timestamp' => now(),
             ]);
 
+            // Return minimal response to avoid JSON encoding issues with tags
             return response()->json([
                 'message' => 'Review submitted successfully. It will be approved by our team.',
                 'data' => [
-                    'review' => $review,
+                    'id' => $review->id,
+                    'karenderia_id' => $review->karenderia_id,
+                    'rating' => $review->rating,
+                    'status' => $review->status,
                 ]
             ], 201);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Return validation errors with field details
+            Log::warning("Review validation error", [
+                'karenderia_id' => $karenderiaId,
+                'errors' => $e->validator->errors()->messages()
+            ]);
+            return response()->json([
+                'error' => 'Validation failed. Please check the following:',
+                'errors' => $e->validator->errors()->messages()
+            ], 422);
         } catch (\Exception $e) {
             Log::error("Error creating karenderia review", [
                 'karenderia_id' => $karenderiaId,
-                'reviewer_id' => $user->id,
+                'reviewer_id' => auth()->id(),
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'error' => 'Failed to submit review',
                 'message' => $e->getMessage(),
-                'debug' => config('app.debug') ? $e->getTraceAsString() : null
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ] : null
             ], 500);
         }
     }
@@ -133,18 +163,18 @@ class KarenderiaReviewController extends Controller
      */
     public function reportIssue(Request $request, int $karenderiaId): JsonResponse
     {
-        $user = $request->user();
-        $karenderia = Karenderia::findOrFail($karenderiaId);
-
-        $validated = $request->validate([
-            'report_type' => 'required|in:permanent_closure,temporary_closure,allergy_issue,food_safety,health_violation,quality_issue,other',
-            'description' => 'required|string|max:3000|min:10',
-            'evidence' => 'sometimes|string|max:1000',
-            'attachments' => 'sometimes|array|max:3',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
-        ]);
-
         try {
+            $user = $request->user();
+            $karenderia = Karenderia::findOrFail($karenderiaId);
+
+            $validated = $request->validate([
+                'report_type' => 'required|in:permanent_closure,temporary_closure,allergy_issue,food_safety,health_violation,quality_issue,other',
+                'description' => 'required|string|max:3000|min:10',
+                'evidence' => 'sometimes|string|max:1000',
+                'attachments' => 'sometimes|array|max:3',
+                'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+            ]);
+
             $attachmentUrls = [];
 
             if ($request->hasFile('attachments')) {
@@ -202,15 +232,24 @@ class KarenderiaReviewController extends Controller
                 ]
             ], 201);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Return validation errors with field details
+            return response()->json([
+                'error' => 'Validation failed. Please check the following:',
+                'errors' => $e->validator->errors()->messages()
+            ], 422);
         } catch (\Exception $e) {
             Log::error("Error creating karenderia report", [
                 'karenderia_id' => $karenderiaId,
-                'reporter_id' => $user->id,
+                'reporter_id' => auth()->id(),
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'error' => 'Failed to submit report'
+                'error' => 'Failed to submit report',
+                'message' => $e->getMessage(),
+                'debug' => config('app.debug') ? $e->getTraceAsString() : null
             ], 500);
         }
     }
@@ -309,6 +348,95 @@ class KarenderiaReviewController extends Controller
         return response()->json([
             'data' => $reports
         ]);
+    }
+
+    /**
+     * Admin: Investigate and respond to a report
+     */
+    public function investigateReport(Request $request, int $reportId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $report = KarenderiaReport::findOrFail($reportId);
+
+        $validated = $request->validate([
+            'status' => 'required|in:new,under_review,acknowledged,resolved,rejected',
+            'admin_response' => 'required|string|min:10|max:2000',
+            'verified' => 'sometimes|boolean',
+            'action_taken' => 'sometimes|in:none,warning,suspension,permanent_closure',
+        ]);
+
+        try {
+            $report->update([
+                'status' => $validated['status'],
+                'admin_response' => $validated['admin_response'],
+                'assigned_admin_id' => $user->id,
+                'verified' => $validated['verified'] ?? $report->verified,
+                'resolved_at' => in_array($validated['status'], ['resolved', 'rejected']) ? now() : $report->resolved_at,
+            ]);
+
+            // If action_taken is specified, update karenderia status
+            if (!empty($validated['action_taken']) && $validated['action_taken'] !== 'none') {
+                $this->applyKarenderiaAction($report->karenderia, $validated['action_taken']);
+            }
+
+            Log::info("Admin investigated report", [
+                'report_id' => $reportId,
+                'admin_id' => $user->id,
+                'status' => $validated['status'],
+                'action' => $validated['action_taken'] ?? 'none',
+            ]);
+
+            return response()->json([
+                'message' => 'Report updated successfully',
+                'data' => $report->refresh()
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Error updating report", [
+                'report_id' => $reportId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to update report'
+            ], 500);
+        }
+    }
+
+    /**
+     * Apply action to karenderia based on report findings
+     */
+    private function applyKarenderiaAction(Karenderia $karenderia, string $action): void
+    {
+        try {
+            switch ($action) {
+                case 'warning':
+                    $karenderia->update(['status' => 'active', 'warning_count' => ($karenderia->warning_count ?? 0) + 1]);
+                    Log::warning("Karenderia warned", ['karenderia_id' => $karenderia->id]);
+                    break;
+
+                case 'suspension':
+                    $karenderia->update(['status' => 'suspended']);
+                    Log::warning("Karenderia suspended", ['karenderia_id' => $karenderia->id]);
+                    break;
+
+                case 'permanent_closure':
+                    $karenderia->update(['status' => 'permanently_closed']);
+                    Log::warning("Karenderia permanently closed", ['karenderia_id' => $karenderia->id]);
+                    break;
+            }
+        } catch (\Exception $e) {
+            Log::error("Error applying karenderia action", [
+                'karenderia_id' => $karenderia->id,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

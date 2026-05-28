@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Karenderia;
 use App\Models\KarenderiaReport;
+use App\Models\KarenderiaReview;
 
 class AdminWebController extends Controller
 {
@@ -80,6 +81,7 @@ class AdminWebController extends Controller
             'approved_karenderias' => Karenderia::where('status', 'approved')->count(),
             'rejected_karenderias' => Karenderia::where('status', 'rejected')->count(),
             'open_reports' => KarenderiaReport::unresolved()->count(),
+            'pending_reviews' => KarenderiaReview::where('status', 'pending')->count(),
         ];
 
         $recent_registrations = Karenderia::with('owner')
@@ -122,6 +124,7 @@ class AdminWebController extends Controller
             'pending_suppliers' => $pendingSuppliers,
             'pending_approvals' => $pendingKarenderias + $pendingSuppliers,
             'open_reports' => KarenderiaReport::unresolved()->count(),
+            'pending_reviews' => KarenderiaReview::where('status', 'pending')->count(),
         ];
 
         $reports = KarenderiaReport::with([
@@ -260,8 +263,12 @@ class AdminWebController extends Controller
             'date_to' => $request->get('date_to', ''),
             'search' => $request->get('search', ''),
         ];
+
+        $stats = [
+            'pending_reviews' => KarenderiaReview::where('status', 'pending')->count(),
+        ];
         
-        return view('admin.users', compact('users', 'filters'))->with('pendingCount', $pendingCount);
+        return view('admin.users', compact('users', 'filters', 'stats'))->with('pendingCount', $pendingCount);
     }
 
     public function karenderias()
@@ -274,7 +281,12 @@ class AdminWebController extends Controller
                           ->orWhereNull('application_status');
                 })
                 ->count();
-        return view('admin.karenderias', compact('karenderias'))->with('pendingCount', $pendingCount);
+        
+        $stats = [
+            'pending_reviews' => KarenderiaReview::where('status', 'pending')->count(),
+        ];
+        
+        return view('admin.karenderias', compact('karenderias', 'stats'))->with('pendingCount', $pendingCount);
     }
 
     /**

@@ -215,6 +215,12 @@
                                 <span class="badge bg-danger ms-2">{{ $reportCount }}</span>
                             @endif
                         </a>
+                        <a class="nav-link {{ request()->routeIs('admin.reviews') ? 'active' : '' }}" href="{{ route('admin.reviews') }}">
+                            <i class="fas fa-star me-2"></i>Reviews
+                            @if(($stats['pending_reviews'] ?? 0) > 0)
+                                <span class="badge bg-warning ms-2">{{ $stats['pending_reviews'] }}</span>
+                            @endif
+                        </a>
                     </nav>
                     
                     <div class="mt-auto">
