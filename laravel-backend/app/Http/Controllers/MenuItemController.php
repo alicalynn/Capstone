@@ -140,17 +140,16 @@ class MenuItemController extends Controller
 
             $menuItem = MenuItem::with('karenderia')->findOrFail($id);
             
-            // Get the user's karenderia
+            // Get the user's karenderia (if they have one)
             $karenderia = \App\Models\Karenderia::where('owner_id', $user->id)->first();
             
-            if (!$karenderia) {
-                return response()->json(['error' => 'No karenderia found for this user'], 403);
-            }
-
-            // Check if the menu item belongs to the user's karenderia
-            if ($menuItem->karenderia_id !== $karenderia->id) {
+            // If user is a karenderia owner, only allow viewing their own menu items
+            if ($karenderia && $menuItem->karenderia_id !== $karenderia->id) {
                 return response()->json(['error' => 'Unauthorized: You can only view your own menu items'], 403);
             }
+            
+            // If user is not a karenderia owner (i.e., a customer), allow viewing any menu item
+            // Customers don't have a karenderia, so karenderia check is skipped
 
             return response()->json($menuItem);
             
