@@ -139,7 +139,7 @@ class KarenderiaReviewController extends Controller
         } catch (\Exception $e) {
             Log::error("Error creating karenderia review", [
                 'karenderia_id' => $karenderiaId,
-                'reviewer_id' => auth()->id(),
+                'reviewer_id' => $request->user()?->id,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -241,7 +241,7 @@ class KarenderiaReviewController extends Controller
         } catch (\Exception $e) {
             Log::error("Error creating karenderia report", [
                 'karenderia_id' => $karenderiaId,
-                'reporter_id' => auth()->id(),
+                'reporter_id' => $request->user()?->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
