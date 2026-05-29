@@ -80,7 +80,6 @@ class DailyMenuController extends Controller
                 'date' => 'required|date|after_or_equal:today',
                 'meal_type' => 'required|in:breakfast,lunch,dinner',
                 'quantity' => 'required|integer|min:1',
-                'special_price' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string|max:500'
             ]);
 
@@ -105,10 +104,6 @@ class DailyMenuController extends Controller
                 $existingEntry->quantity = (int) $existingEntry->quantity + $additionalQty;
                 $existingEntry->original_quantity = (int) $existingEntry->original_quantity + $additionalQty;
 
-                if (array_key_exists('special_price', $validatedData)) {
-                    $existingEntry->special_price = $validatedData['special_price'];
-                }
-
                 if (array_key_exists('notes', $validatedData)) {
                     $existingEntry->notes = $validatedData['notes'];
                 }
@@ -131,7 +126,6 @@ class DailyMenuController extends Controller
                 'meal_type' => $validatedData['meal_type'],
                 'quantity' => $validatedData['quantity'],
                 'original_quantity' => $validatedData['quantity'],
-                'special_price' => $validatedData['special_price'],
                 'notes' => $validatedData['notes'] ?? null
             ]);
 
@@ -175,7 +169,6 @@ class DailyMenuController extends Controller
             $validatedData = $request->validate([
                 'quantity' => 'sometimes|integer|min:0',
                 'is_available' => 'sometimes|boolean',
-                'special_price' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string|max:500'
             ]);
 
@@ -293,14 +286,13 @@ class DailyMenuController extends Controller
                 return [
                     'karenderia' => $karenderia,
                     'menu_items' => $items->map(function($item) {
-                        return [
-                            'id' => $item->id,
-                            'menu_item' => $item->menuItem,
-                            'quantity' => $item->quantity,
-                            'special_price' => $item->special_price,
-                            'notes' => $item->notes
-                        ];
-                    })
+                            return [
+                                'id' => $item->id,
+                                'menu_item' => $item->menuItem,
+                                'quantity' => $item->quantity,
+                                'notes' => $item->notes
+                            ];
+                        })
                 ];
             })->values();
 

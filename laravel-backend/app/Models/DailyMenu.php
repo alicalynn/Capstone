@@ -17,7 +17,6 @@ class DailyMenu extends Model
         'original_quantity',
         'ingredient_quantity',
         'is_available',
-        'special_price',
         'notes'
     ];
 
@@ -27,7 +26,7 @@ class DailyMenu extends Model
         'original_quantity' => 'integer',
         'ingredient_quantity' => 'decimal:3',
         'is_available' => 'boolean',
-        'special_price' => 'decimal:2'
+        // 'special_price' removed - deprecated
     ];
 
     /**

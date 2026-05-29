@@ -342,7 +342,6 @@ try {
                 'inventory_id' => $inventoryId,
                 'ingredient_quantity' => $ingredientQty,
                 'is_available' => true,
-                'special_price' => null,
                 'notes' => $notes,
             ]
         );
