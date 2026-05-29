@@ -354,6 +354,34 @@ class AdminWebController extends Controller
     }
 
     /**
+     * Verify a rejected user account from the web admin dashboard.
+     */
+    public function approveUser($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if ($user->role === 'admin') {
+                return back()->with('error', 'Cannot modify admin user approval.');
+            }
+
+            $user->application_status = 'approved';
+            $user->verified = true;
+            $user->disabled_at = null;
+            $user->save();
+
+            return back()->with('success', "{$user->name} has been verified successfully.");
+        } catch (\Exception $e) {
+            Log::error('Error approving user from admin web dashboard', [
+                'user_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to verify user.');
+        }
+    }
+
+    /**
      * Show edit form for a karenderia application
      */
     public function editKarenderia($id)

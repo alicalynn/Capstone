@@ -86,14 +86,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware(['auth:sanctum', 'account.active']);
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
-    Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->middleware('auth:sanctum');
-    Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
+    Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->middleware(['auth:sanctum', 'account.active']);
+    Route::get('/user', [AuthController::class, 'user'])->middleware(['auth:sanctum', 'account.active']);
 });
 
 // User profile routes
-Route::middleware('auth:sanctum')->prefix('user')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('user')->group(function () {
     Route::get('/profile', [UserController::class, 'getProfile']);
     Route::post('/profile', [UserController::class, 'updateProfile']);
     Route::put('/profile', [UserController::class, 'updateProfile']);
@@ -104,7 +104,7 @@ Route::middleware('auth:sanctum')->prefix('user')->group(function () {
 });
 
 // User-specific routes (allergens, meal plans)
-Route::middleware('auth:sanctum')->prefix('users/{userId}')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('users/{userId}')->group(function () {
     Route::post('/allergens', [UserController::class, 'addAllergen']);
     Route::delete('/allergens/{allergenId}', [UserController::class, 'removeAllergen']);
     Route::post('/meal-plans', [UserController::class, 'addMealPlan']);
@@ -117,13 +117,13 @@ Route::prefix('karenderias')->group(function () {
     Route::get('/', [KarenderiaController::class, 'index']);
     Route::get('/search', [KarenderiaController::class, 'search']);
     Route::get('/nearby', [KarenderiaController::class, 'nearby']);
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
         Route::get('/my-karenderia', [KarenderiaController::class, 'myKarenderia']);
         Route::put('/my-karenderia', [KarenderiaController::class, 'updateMyKarenderiaData']);
     });
     
     // Protected routes for karenderia owners (must come before {id} route)
-    Route::middleware(['auth:sanctum', 'karenderia.approved'])->group(function () {
+    Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->group(function () {
         Route::post('/', [KarenderiaController::class, 'store']);
         Route::put('/{id}', [KarenderiaController::class, 'update']);
         Route::put('/{id}/data', [KarenderiaController::class, 'updateKarenderiaData']);
@@ -150,7 +150,7 @@ Route::prefix('menu-items')->group(function () {
 });
 
 // Menu Items routes
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-items')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('menu-items')->group(function () {
     Route::post('/', [MenuItemController::class, 'store']);
     Route::get('/', [MenuItemController::class, 'index']);
     Route::get('/my-menu', [MenuItemController::class, 'getMyMenuItems']); // Added missing route
@@ -160,7 +160,7 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-items')
 });
 
 // Menu Item Ingredients routes (for specifying what ingredients each menu item needs)
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-item-ingredients')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('menu-item-ingredients')->group(function () {
     Route::get('/available-inventory', [MenuItemIngredientController::class, 'availableInventory']); // Get available inventory to add as ingredients
     Route::get('/{menuItemId}', [MenuItemIngredientController::class, 'index']); // Get ingredients for a menu item
     Route::post('/', [MenuItemIngredientController::class, 'store']); // Add ingredient to menu item
@@ -169,7 +169,7 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-item-in
 });
 
 // Daily Menu routes (Menu of the Day)
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('daily-menu')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('daily-menu')->group(function () {
     // For Karenderia Owners
     Route::get('/', [DailyMenuController::class, 'index']); // Get owner's daily menu
     Route::post('/', [DailyMenuController::class, 'store']); // Add menu item to daily menu
@@ -184,7 +184,7 @@ Route::prefix('daily-menu')->group(function () {
 });
 
 // Inventory routes (for karenderia owners to manage ingredients/supplies)
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('inventory')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('inventory')->group(function () {
     Route::get('/', [InventoryController::class, 'index']); // Get inventory items
     Route::get('/alerts', [InventoryController::class, 'lowStock']); // Get low/out of stock alerts
     Route::post('/', [InventoryController::class, 'store']); // Add inventory item
@@ -196,7 +196,7 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('inventory')-
 });
 
 // Supplier + owner inventory workflow routes
-Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('supply')->group(function () {
     // Marketplace for karenderia owners
     Route::get('/marketplace', [SupplierWorkflowController::class, 'marketplace']);
 
@@ -223,7 +223,7 @@ Route::middleware(['auth:sanctum'])->prefix('supply')->group(function () {
 
 // ==================== INGREDIENT REQUEST SYSTEM ====================
 // Ingredient Requests routes (Owner posts requests, Suppliers respond with quotes)
-Route::middleware(['auth:sanctum'])->prefix('ingredient-requests')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('ingredient-requests')->group(function () {
     // OWNER SIDE: Create and manage ingredient requests
     Route::middleware('karenderia.approved')->group(function () {
         Route::post('/', [IngredientRequestController::class, 'store']); // Owner posts ingredient request
@@ -241,7 +241,7 @@ Route::middleware(['auth:sanctum'])->prefix('ingredient-requests')->group(functi
 });
 
 // Supplier Quotes routes
-Route::middleware(['auth:sanctum'])->prefix('supplier-quotes')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('supplier-quotes')->group(function () {
     // SUPPLIER: Submit quotes
     Route::middleware('supplier.verified')->group(function () {
         Route::post('/', [SupplierQuoteController::class, 'store']); // Supplier submit quote
@@ -257,7 +257,7 @@ Route::middleware(['auth:sanctum'])->prefix('supplier-quotes')->group(function (
 });
 
 // Messages/Chat routes (for communication between owner and supplier)
-Route::middleware(['auth:sanctum'])->prefix('messages')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('messages')->group(function () {
     Route::post('/', [MessageController::class, 'store']); // Send a message
     Route::get('/conversations', [MessageController::class, 'conversations']); // Get all conversations
     Route::get('/ingredient-requests/{ingredientRequest}', [MessageController::class, 'getConversation']); // Get conversation for specific request
@@ -266,7 +266,7 @@ Route::middleware(['auth:sanctum'])->prefix('messages')->group(function () {
 });
 
 // Menu Categories (for organizing menu items)
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-categories')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('menu-categories')->group(function () {
     Route::get('/', [MenuCategoryController::class, 'index']); // Get categories for owner's karenderia
     Route::post('/', [MenuCategoryController::class, 'store']); // Create new category
     Route::get('/{id}', [MenuCategoryController::class, 'show']); // Get specific category
@@ -275,7 +275,7 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('menu-categor
 });
 
 // Ingredients routes (for managing ingredient database)
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('ingredients')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('ingredients')->group(function () {
     Route::get('/', [IngredientController::class, 'index']); // Get all ingredients
     Route::post('/', [IngredientController::class, 'store']); // Add new ingredient
     Route::get('/{id}', [IngredientController::class, 'show']); // Get specific ingredient
@@ -284,14 +284,14 @@ Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('ingredients'
 });
 
 // Analytics routes for karenderia owners
-Route::middleware(['auth:sanctum', 'karenderia.approved'])->prefix('analytics')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'karenderia.approved'])->prefix('analytics')->group(function () {
     Route::get('/daily-sales', [MenuItemController::class, 'getDailySales']);
     Route::get('/monthly-sales', [MenuItemController::class, 'getMonthlySales']);
     Route::get('/sales-summary', [MenuItemController::class, 'getSalesSummary']);
 });
 
 // Admin routes (Protected - Admin only)
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active', 'admin'])->prefix('admin')->group(function () {
     // Dashboard
     Route::get('/dashboard', [AdminController::class, 'dashboard']);
     Route::get('/dashboard/stats', [AdminController::class, 'getDashboardStats']);
@@ -324,6 +324,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/karenderia-owners', [AdminController::class, 'getKarenderiaOwners']);
     Route::get('/suppliers', [AdminController::class, 'getSuppliers']);
     Route::put('/suppliers/{userId}/application-status', [AdminController::class, 'updateSupplierApplicationStatus']);
+    Route::put('/users/{userId}/approve', [AdminController::class, 'approveUserAccount']);
     Route::put('/users/{userId}/role', [AdminController::class, 'updateUserRole']);
     Route::put('/users/{userId}/toggle-status', [AdminController::class, 'toggleUserStatus']);
     Route::delete('/users/{userId}', [AdminController::class, 'deleteUser']);
@@ -341,7 +342,7 @@ Route::prefix('karenderia-reviews')->group(function () {
 });
 
 // Authenticated Karenderia Reviews Routes
-Route::middleware('auth:sanctum')->prefix('karenderia-reviews')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->prefix('karenderia-reviews')->group(function () {
     Route::post('/{karenderiaId}', [KarenderiaReviewController::class, 'createReview']);
     Route::post('/{karenderiaId}/report', [KarenderiaReviewController::class, 'reportIssue']);
 });

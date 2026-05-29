@@ -299,18 +299,21 @@ class AdminController extends Controller
             if (in_array($request->status, ['approved', 'active'], true)) {
                 $karenderia->owner->application_status = 'approved';
                 $karenderia->owner->verified = true;
+                $karenderia->owner->disabled_at = null;
                 // IMPORTANT: Ensure role remains karenderia_owner after approval
                 $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
             } elseif ($request->status === 'pending') {
                 $karenderia->owner->application_status = 'pending';
                 $karenderia->owner->verified = false;
+                $karenderia->owner->disabled_at = null;
                 // Ensure role is karenderia_owner for pending status
                 $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
             } elseif ($request->status === 'rejected') {
                 $karenderia->owner->application_status = 'rejected';
                 $karenderia->owner->verified = false;
+                $karenderia->owner->disabled_at = null;
                 // Ensure role is karenderia_owner even when rejected
                 $karenderia->owner->role = 'karenderia_owner';
                 $karenderia->owner->save();
@@ -636,13 +639,14 @@ class AdminController extends Controller
                     'email' => $customer->email,
                     'phone' => $customer->phone,
                     'verified' => $customer->verified,
+                    'disabled_at' => $customer->disabled_at,
                     'application_status' => $customer->application_status,
                     'created_at' => $customer->created_at,
                     'last_login' => $customer->updated_at,
                     'total_orders' => $customer->orders_count,
                     'total_spent' => $customer->orders_sum_total_amount ?? 0,
                     'recent_orders' => $customer->orders,
-                    'status' => $customer->verified ? 'verified' : 'unverified'
+                    'status' => $customer->disabled_at ? 'disabled' : ($customer->application_status ?? ($customer->verified ? 'verified' : 'unverified'))
                 ];
             });
 
@@ -670,6 +674,7 @@ class AdminController extends Controller
                     'email' => $owner->email,
                     'phone' => $owner->phone,
                     'verified' => $owner->verified,
+                    'disabled_at' => $owner->disabled_at,
                     'application_status' => $owner->application_status,
                     'created_at' => $owner->created_at,
                     'karenderia' => $owner->karenderia ? [
@@ -679,7 +684,7 @@ class AdminController extends Controller
                         'approved_at' => $owner->karenderia->approved_at,
                         'has_location' => !is_null($owner->karenderia->latitude) && !is_null($owner->karenderia->longitude)
                     ] : null,
-                    'status' => $owner->verified ? 'verified' : ($owner->application_status ?? 'unverified')
+                    'status' => $owner->disabled_at ? 'disabled' : ($owner->verified ? 'verified' : ($owner->application_status ?? 'unverified'))
                 ];
             });
 
@@ -706,7 +711,8 @@ class AdminController extends Controller
                     'address' => $supplier->address,
                     'application_status' => $supplier->application_status,
                     'verified' => $supplier->verified,
-                    'status' => $supplier->verified ? 'verified' : $supplier->application_status,
+                    'disabled_at' => $supplier->disabled_at,
+                    'status' => $supplier->disabled_at ? 'disabled' : ($supplier->verified ? 'verified' : $supplier->application_status),
                     'created_at' => $supplier->created_at,
                     'updated_at' => $supplier->updated_at,
                 ];
@@ -736,6 +742,7 @@ class AdminController extends Controller
             ], 422);
         }
 
+        $user->disabled_at = null;
         $user->application_status = $request->application_status;
         $user->verified = $request->application_status === 'approved';
         $user->save();
@@ -743,6 +750,32 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Supplier application status updated successfully',
+            'data' => $user
+        ]);
+    }
+
+    /**
+     * Approve a user account regardless of prior rejection.
+     */
+    public function approveUserAccount($userId)
+    {
+        $user = User::findOrFail($userId);
+
+        if ($user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot modify admin user approval'
+            ], 403);
+        }
+
+        $user->application_status = 'approved';
+        $user->verified = true;
+        $user->disabled_at = null;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User approved successfully',
             'data' => $user
         ]);
     }
@@ -778,6 +811,8 @@ class AdminController extends Controller
             $user->verified = true;
         }
 
+        $user->disabled_at = null;
+
         $user->save();
 
         return response()->json([
@@ -802,11 +837,10 @@ class AdminController extends Controller
             ], 403);
         }
 
-        // Toggle email_verified_at as a way to enable/disable users
-        $user->email_verified_at = $user->email_verified_at ? null : now();
+        $user->disabled_at = $user->disabled_at ? null : now();
         $user->save();
 
-        $status = $user->email_verified_at ? 'enabled' : 'disabled';
+        $status = $user->disabled_at ? 'disabled' : 'enabled';
 
         return response()->json([
             'success' => true,
@@ -815,31 +849,11 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * Delete user (soft delete or hard delete)
-     */
     public function deleteUser($userId)
     {
-        $user = User::findOrFail($userId);
-        
-        // Prevent deleting admin users
-        if ($user->role === 'admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete admin users'
-            ], 403);
-        }
-
-        // If karenderia owner, also handle karenderia record
-        if ($user->role === 'karenderia_owner' && $user->karenderia) {
-            $user->karenderia->delete();
-        }
-
-        $user->delete();
-
         return response()->json([
-            'success' => true,
-            'message' => 'User deleted successfully'
-        ]);
+            'success' => false,
+            'message' => 'User deletion is disabled. Use enable/disable status instead.'
+        ], 405);
     }
 }

@@ -62,6 +62,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminWebController::class, 'users'])->name('admin.users');
         Route::get('/users/{id}/edit', [AdminWebController::class, 'editUser'])->name('admin.edit-user');
         Route::put('/users/{id}', [AdminWebController::class, 'updateUser'])->name('admin.update-user');
+        Route::put('/users/{id}/approve', [AdminWebController::class, 'approveUser'])->name('admin.users.approve');
         
         Route::get('/karenderias', [AdminWebController::class, 'karenderias'])->name('admin.karenderias');
         Route::get('/karenderias/{id}/edit', [AdminWebController::class, 'editKarenderia'])->name('admin.edit-karenderia');

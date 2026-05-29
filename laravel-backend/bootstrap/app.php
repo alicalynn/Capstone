@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'auth.admin' => \App\Http\Middleware\AdminAuthMiddleware::class,
+            'account.active' => \App\Http\Middleware\CheckAccountActive::class,
             'karenderia.approved' => \App\Http\Middleware\CheckKarenderiaApproval::class,
             'supplier.verified' => \App\Http\Middleware\SupplierVerifiedMiddleware::class,
         ]);

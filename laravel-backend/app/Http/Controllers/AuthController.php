@@ -155,8 +155,16 @@ class AuthController extends Controller
                 'approved_by' => null
             ]);
 
-            // Send registration confirmation email
-            $user->notify(new KarenderiaRegistrationConfirmation());
+            // Send registration confirmation email, but do not fail the registration if mail is down
+            try {
+                $user->notify(new KarenderiaRegistrationConfirmation());
+            } catch (\Throwable $notificationException) {
+                Log::warning('Karenderia registration notification failed:', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'message' => $notificationException->getMessage(),
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -254,8 +262,16 @@ class AuthController extends Controller
                 'email_notifications_enabled' => true
             ]);
 
-            // Send registration confirmation email
-            $user->notify(new RegistrationConfirmationNotification('supplier'));
+            // Send registration confirmation email, but do not fail the registration if mail is down
+            try {
+                $user->notify(new RegistrationConfirmationNotification('supplier'));
+            } catch (\Throwable $notificationException) {
+                Log::warning('Supplier registration notification failed:', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'message' => $notificationException->getMessage(),
+                ]);
+            }
 
             Log::info('Supplier registered successfully:', ['user_id' => $user->id, 'email' => $user->email]);
 
@@ -467,6 +483,15 @@ class AuthController extends Controller
         $user = Auth::user();
         Log::info('User authenticated successfully:', ['user_id' => $user->id, 'email' => $user->email, 'role' => $user->role]);
 
+        if ($user->disabled_at) {
+            Auth::logout();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account has been disabled. Please contact admin support.'
+            ], 403);
+        }
+
         // Only check karenderia business approval for karenderia owners
         if ($user->role === 'karenderia_owner') {
             $karenderia = $user->karenderia;
@@ -547,7 +572,8 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'displayName' => $user->name,
                 'role' => $user->role,
-                'verified' => $user->verified
+                'verified' => $user->verified,
+                'disabled_at' => $user->disabled_at
             ],
             'access_token' => $token,
             'token_type' => 'Bearer'
@@ -596,7 +622,8 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'displayName' => $user->name,
                 'role' => $user->role,
-                'verified' => $user->verified
+                'verified' => $user->verified,
+                'disabled_at' => $user->disabled_at
             ]
         ]);
     }

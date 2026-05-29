@@ -142,6 +142,20 @@
                                                     <i class="fas fa-clock"></i> Pending Approval
                                                 </span>
                                             @endif
+                                        @elseif($user->role === 'customer')
+                                            @if($user->verified || $user->application_status === 'approved' || $user->status === 'verified')
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Verified
+                                                </span>
+                                            @elseif($user->application_status === 'rejected' || $user->status === 'rejected')
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times"></i> Rejected
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Pending Approval
+                                                </span>
+                                            @endif
                                         @elseif($user->role === 'karenderia_owner')
                                             @if(!$user->karenderia)
                                                 <span class="badge bg-secondary">
@@ -233,6 +247,14 @@
                                             @else
                                                 <span class="badge bg-warning text-dark">Pending Approval</span>
                                             @endif
+                                        @elseif($user->role === 'customer')
+                                            @if($user->verified || $user->application_status === 'approved' || $user->status === 'verified')
+                                                <span class="badge bg-success">Active</span>
+                                            @elseif($user->application_status === 'rejected' || $user->status === 'rejected')
+                                                <span class="badge bg-danger">Rejected</span>
+                                            @else
+                                                <span class="badge bg-warning text-dark">Pending Approval</span>
+                                            @endif
                                         @else
                                             <span class="badge bg-success">Active</span>
                                         @endif
@@ -242,6 +264,15 @@
                                             <a href="{{ route('admin.edit-user', $user->id) }}" class="btn btn-outline-primary" title="Edit user">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            @if(in_array($user->role, ['customer', 'supplier'], true) && $user->application_status === 'rejected')
+                                                <form action="{{ route('admin.users.approve', $user->id) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button type="submit" class="btn btn-outline-success" title="Verify user">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                             @if($user->karenderia)
                                             <a href="{{ route('admin.review-application', $user->karenderia->id) }}" class="btn btn-outline-info" title="View application">
                                                 <i class="fas fa-file-alt"></i>
